@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang=en>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>PostgreSQL · 源码解析 · WAL日志 | Spike&#39;s Blog</title>
+  <meta name="description" content="WAL日志文件  WAL段文件 WAL文件内部结构  Page结构 Record结构     WAL日志写入实现  整页写入(Full_Write_Page) 具体数据结构  XLog Page  XLogPageHeaderData XLogLongPageHeaderData   XLog Record  XLogRecord XLogRecordBlockHeader XLogRecord">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PostgreSQL · 源码解析 · WAL日志">
+<meta property="og:url" content="https://spike1337.github.io/2023/02/03/pg-wal-source-code/index.html">
+<meta property="og:site_name" content="Spike&#39;s Blog">
+<meta property="og:description" content="WAL日志文件  WAL段文件 WAL文件内部结构  Page结构 Record结构     WAL日志写入实现  整页写入(Full_Write_Page) 具体数据结构  XLog Page  XLogPageHeaderData XLogLongPageHeaderData   XLog Record  XLogRecord XLogRecordBlockHeader XLogRecord">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://spike1337.github.io/uploads/WALPage.png">
+<meta property="og:image" content="https://spike1337.github.io/uploads/wal_write.png">
+<meta property="og:image" content="https://spike1337.github.io/uploads/wal_process.png">
+<meta property="og:image" content="https://spike1337.github.io/uploads/xlog_register_data.jpg">
+<meta property="og:image" content="https://spike1337.github.io/uploads/xlog_register_buf.jpg">
+<meta property="article:published_time" content="2023-02-03T05:44:58.000Z">
+<meta property="article:modified_time" content="2023-02-28T07:03:40.748Z">
+<meta property="article:author" content="Spike">
+<meta property="article:tag" content="PostgreSQL">
+<meta property="article:tag" content="replication">
+<meta property="article:tag" content="WAL">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://spike1337.github.io/uploads/WALPage.png">
+  <!-- Canonical links -->
+  <link rel="canonical" href="https://spike1337.github.io/2023/02/03/pg-wal-source-code/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="Spike&#39;s Blog" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="images/avatar.jpg" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body class="main-center" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/Spike1337" target="_blank">
+          <img class="img-circle img-rotate" src="/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">Spike</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Code for fun</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Tianjin, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="Search" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="Type something..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav menu-highlight">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">Home</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">Archives</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">Categories</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">Tags</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-repository">
+          <a href="/repository">
+            
+            <i class="icon icon-project"></i>
+            
+            <span class="menu-title">Repository</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">About</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/Spike1337" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Weibo" data-toggle=tooltip data-placement=top><i class="icon icon-weibo"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Twitter" data-toggle=tooltip data-placement=top><i class="icon icon-twitter"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Behance" data-toggle=tooltip data-placement=top><i class="icon icon-behance"></i></a></li>
+        
+        <li><a href="/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      <div class="widget">
+    <h3 class="widget-title">Board</h3>
+    <div class="widget-body">
+        <div id="board">
+            <div class="content">
+                <p>Konaqua ~</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget-body">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Linux/">Linux</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/PostgreSQL/">PostgreSQL</a><span class="category-list-count">2</span></li></ul>
+    </div>
+  </div>
+
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget-body">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/" rel="tag">Linux</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MVCC/" rel="tag">MVCC</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/WAL/" rel="tag">WAL</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/isolation/" rel="tag">isolation</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/replication/" rel="tag">replication</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tools/" rel="tag">tools</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/transaction/" rel="tag">transaction</a><span class="tag-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget-body tagcloud">
+      <a href="/tags/Linux/" style="font-size: 13px;">Linux</a> <a href="/tags/MVCC/" style="font-size: 13px;">MVCC</a> <a href="/tags/PostgreSQL/" style="font-size: 14px;">PostgreSQL</a> <a href="/tags/WAL/" style="font-size: 13px;">WAL</a> <a href="/tags/isolation/" style="font-size: 13px;">isolation</a> <a href="/tags/replication/" style="font-size: 13px;">replication</a> <a href="/tags/tools/" style="font-size: 13px;">tools</a> <a href="/tags/transaction/" style="font-size: 13px;">transaction</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">Archive</h3>
+    <div class="widget-body">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a><span class="archive-list-count">3</span></li></ul>
+    </div>
+  </div>
+
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/Linux/">Linux</a>
+              </p>
+              <p class="item-title">
+                <a href="/2023/02/07/devtodo-manual/" class="title">Linux · 工具 · devtodo · 简洁的终端todo工具</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2023-02-07T02:23:30.000Z" itemprop="datePublished">2023-02-07</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/PostgreSQL/">PostgreSQL</a>
+              </p>
+              <p class="item-title">
+                <a href="/2023/02/06/mvcc-source-code/" class="title">PostgreSQL · 源码解析 · MVCC机制</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2023-02-06T06:36:45.000Z" itemprop="datePublished">2023-02-06</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/PostgreSQL/">PostgreSQL</a>
+              </p>
+              <p class="item-title">
+                <a href="/2023/02/03/pg-wal-source-code/" class="title">PostgreSQL · 源码解析 · WAL日志</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2023-02-03T05:44:58.000Z" itemprop="datePublished">2023-02-03</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-pg-wal-source-code" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      PostgreSQL · 源码解析 · WAL日志
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/2023/02/03/pg-wal-source-code/" class="article-date">
+	  <time datetime="2023-02-03T05:44:58.000Z" itemprop="datePublished">2023-02-03</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/categories/PostgreSQL/">PostgreSQL</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a>, <a class="article-tag-link-link" href="/tags/WAL/" rel="tag">WAL</a>, <a class="article-tag-link-link" href="/tags/replication/" rel="tag">replication</a>
+  </span>
+
+
+        
+	<span class="article-read hidden-xs">
+	    <i class="icon icon-eye-fill" aria-hidden="true"></i>
+	    <span id="busuanzi_container_page_pv">
+			<span id="busuanzi_value_page_pv">0</span>
+		</span>
+	</span>
+
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/2023/02/03/pg-wal-source-code/#comments" class="article-comment-link">Comments</a></span>
+        
+	
+		<span class="post-wordcount hidden-xs" itemprop="wordCount">Word Count: 5k(words)</span>
+	
+	
+		<span class="post-readcount hidden-xs" itemprop="timeRequired">Read Count: 21(minutes)</span>
+	
+
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <ul>
+<li><a href="#wal%E6%97%A5%E5%BF%97%E6%96%87%E4%BB%B6">WAL日志文件</a>
+<ul>
+<li><a href="#wal%E6%AE%B5%E6%96%87%E4%BB%B6">WAL段文件</a></li>
+<li><a href="#wal%E6%96%87%E4%BB%B6%E5%86%85%E9%83%A8%E7%BB%93%E6%9E%84">WAL文件内部结构</a>
+<ul>
+<li><a href="#page%E7%BB%93%E6%9E%84">Page结构</a></li>
+<li><a href="#record%E7%BB%93%E6%9E%84">Record结构</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#wal%E6%97%A5%E5%BF%97%E5%86%99%E5%85%A5%E5%AE%9E%E7%8E%B0">WAL日志写入实现</a>
+<ul>
+<li><a href="#%E6%95%B4%E9%A1%B5%E5%86%99%E5%85%A5full_write_page">整页写入(Full_Write_Page)</a></li>
+<li><a href="#%E5%85%B7%E4%BD%93%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84">具体数据结构</a>
+<ul>
+<li><a href="#xlog-page">XLog Page</a>
+<ul>
+<li><a href="#xlogpageheaderdata">XLogPageHeaderData</a></li>
+<li><a href="#xloglongpageheaderdata">XLogLongPageHeaderData</a></li>
+</ul>
+</li>
+<li><a href="#xlog-record">XLog Record</a>
+<ul>
+<li><a href="#xlogrecord">XLogRecord</a></li>
+<li><a href="#xlogrecordblockheader">XLogRecordBlockHeader</a></li>
+<li><a href="#xlogrecordblockimageheader">XLogRecordBlockImageHeader</a></li>
+<li><a href="#xlogrecordblockcompressheader">XLogRecordBlockCompressHeader</a></li>
+</ul>
+</li>
+<li><a href="#xlog-data">XLog Data</a>
+<ul>
+<li><a href="#xlogrecorddataheader">XLogRecordDataHeader</a></li>
+<li><a href="#xlogrecdata">XLogRecData</a></li>
+</ul>
+</li>
+<li><a href="#xlog%E6%8E%A7%E5%88%B6%E7%BB%93%E6%9E%84">XLog控制结构</a>
+<ul>
+<li><a href="#xlogctldata">XLogCtlData</a></li>
+<li><a href="#register_buffer">Register_buffer</a></li>
+</ul>
+</li>
+<li><a href="#%E9%87%8D%E8%A6%81%E5%85%A8%E5%B1%80%E5%8F%98%E9%87%8F">重要全局变量</a></li>
+</ul>
+</li>
+<li><a href="#%E5%85%B7%E4%BD%93%E5%87%BD%E6%95%B0%E4%BB%A3%E7%A0%81">具体函数代码</a>
+<ul>
+<li><a href="#xlogbegininsert">XLogBeginInsert</a></li>
+<li><a href="#xlogregisterdata">XLogRegisterData</a></li>
+<li><a href="#xlogregisterbuffer">XLogRegisterBuffer</a></li>
+<li><a href="#xlogregisterbufdata">XLogRegisterBufData</a></li>
+<li><a href="#xloginsert">XLogInsert</a></li>
+<li><a href="#xlogrecordassemble">XLogRecordAssemble</a></li>
+<li><a href="#xloginsertrecord">XLogInsertRecord</a></li>
+<li><a href="#pagesetlsn">PageSetLSN</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<hr>
+<br>
+<p>Postgresql 使用 wal 日志保存每一次的数据修改，这样保证了数据库即使意外宕机，也能利用它准确的恢复数据。wal 日志也叫做 xlog，在 9.4 版本之后作了重大更新，本篇只讲解最新版的格式。wal 日志被用于多个方面，比如修改数据，修改索引等，每种用途的格式都不相同，但是构建方式是相同的。</p>
+<h2 id="WAL日志文件">WAL日志文件</h2>
+<h3 id="WAL段文件">WAL段文件</h3>
+<p>WAL日志文件存放在sd_wal目录下，每个文件大小默认为16M：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">-rw-------  1 zhangze  zhangze  16777216 Oct  8 10:57 0000000100000000000000B6</span><br><span class="line">-rw-------  1 zhangze  zhangze  16777216 Oct  8 10:57 0000000100000000000000B7</span><br><span class="line">-rw-------  1 zhangze  zhangze  16777216 Oct  8 10:57 0000000100000000000000B8</span><br><span class="line">-rw-------  1 zhangze  zhangze  16777216 Oct  8 10:57 0000000100000000000000B9</span><br><span class="line">-rw-------  1 zhangze  zhangze  16777216 Oct  8 10:57 0000000100000000000000BA</span><br><span class="line">-rw-------  1 zhangze  zhangze  16777216 Oct  8 10:57 0000000100000000000000BB</span><br><span class="line">drwx------  2 zhangze  zhangze        68 Oct  8 10:53 archive_status</span><br></pre></td></tr></table></figure>
+<p>文件名由16进制的24个字符组成，每8个字符为一组，每组意义如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">00000001 00000000 000000B6</span><br><span class="line"> 时间线    LogID    LogSeg</span><br></pre></td></tr></table></figure>
+<ul>
+<li><strong>时间线</strong>：时间线ID，取值范围为 0x00000000 -&gt; 0xFFFFFFFF。数据库建好后的第一个WAL日志文件的时间线ID从1开始</li>
+<li><strong>LogID</strong>：逻辑文件ID，取值范围为 0x00000000 -&gt; 0xFFFFFFFF</li>
+<li><strong>LogSeg</strong>：物理文件ID，取值范围为 0x00000000 -&gt; 0x000000FF。数据库建好后的第一个WAL日志文件的LogSeg从1开始，达到最大值（0xFF）后从0开始。</li>
+</ul>
+<p><strong>LSN</strong>即日志序列号，表示XLog记录在事务日志文件中的偏移，为uint64值。LSN由三部分组成，分别是逻辑文件ID，物理文件ID和文件内偏移量。LSN打印出来是两个8位的十六进制数，如16/B374D848。由专门的类型<code>pg_lsn</code>来存放LSN数据</p>
+<p>PG WAL文件名字的命名方法是在XLogFileName宏里定义的。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> XLogSegmentsPerXLogId(wal_segsz_bytes)  \</span></span><br><span class="line"><span class="meta">    (UINT64CONST(0x100000000) / (wal_segsz_bytes))</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> XLogFileName(fname, tli, logSegNo, wal_segsz_bytes) \</span></span><br><span class="line"><span class="meta">    snprintf(fname, MAXFNAMELEN, <span class="string">&quot;%08X%08X%08X&quot;</span>, tli,       \</span></span><br><span class="line"><span class="meta">             (uint32) ((logSegNo) / XLogSegmentsPerXLogId(wal_segsz_bytes)), \</span></span><br><span class="line"><span class="meta">             (uint32) ((logSegNo) % XLogSegmentsPerXLogId(wal_segsz_bytes)))</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> XLogFileNameById(fname, tli, log, seg)  \</span></span><br><span class="line"><span class="meta">    snprintf(fname, MAXFNAMELEN, <span class="string">&quot;%08X%08X%08X&quot;</span>, tli, log, seg)</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> IsXLogFileName(fname) \</span></span><br><span class="line"><span class="meta">    (strlen(fname) == XLOG_FNAME_LEN &amp;&amp; \</span></span><br><span class="line"><span class="meta">     strspn(fname, <span class="string">&quot;0123456789ABCDEF&quot;</span>) == XLOG_FNAME_LEN)</span></span><br></pre></td></tr></table></figure>
+<h3 id="WAL文件内部结构">WAL文件内部结构</h3>
+<p>每个WAL段文件由多个8kb大小的page组成，每个Page中存放着PageHeader信息，以及多条WAL Record</p>
+<h4 id="Page结构">Page结构</h4>
+<p>每个page的组织方式如下图：</p>
+<p><img src="/uploads/WALPage.png" alt="WAL的page结构"></p>
+<ul>
+<li><strong>PageHeader</strong>：在wal page的组成中有两种pageheader结构，<code>XLogPageHeaderData</code>和<code>XLogLongPageHeaderData</code>。每个WAL段的第一个Page的Header应为LongHeader</li>
+<li><strong>Remain data</strong>：存储着上一个page中最后一个Record没有存完的数据，大小为<code>xlp_rem_len</code>，对应page的不完整Record</li>
+<li><strong>Record</strong>：存储具体的WAL Record</li>
+<li><strong>无数据区域</strong>：一个WAL Record的头部信息不允许跨页，如果剩余空间不够存储头部信息，则舍弃这部分空间</li>
+</ul>
+<h4 id="Record结构">Record结构</h4>
+<p>每个WAL Record的结构如下图，绿色部分为数据描述结构，黄色部分是实际保存的数据</p>
+<p><img src="/uploads/wal_write.png" alt="WAL_Record"></p>
+<ul>
+<li><strong>XLogRecord</strong>：一个WAL记录的入口，解析WAL时，从这个结构体入手</li>
+<li><strong>Block</strong>：第一个虚线框称为一个BLOCK，用以描述Buffer相关的数据结构。通过<code>XLogRegisterBuffer()</code>函数注册到wal记录中
+<ul>
+<li><strong>XLogRecordBlockHeader</strong>：一个BLOCK的头部信息</li>
+<li><strong>XLogRecordBlockImageHeader</strong>：如果该WAL是fpw记录，该结构存放fpw相关信息
+<ul>
+<li>fpw：Full_page_write，具体见<a href="#%E6%95%B4%E9%A1%B5%E5%86%99%E5%85%A5full_write_page">整页写入</a></li>
+</ul>
+</li>
+<li><strong>XLogRecordBlockCompressHeader</strong>：记录hole的大小
+<ul>
+<li>hole：数据文件的page中，可能会有一块空白区域，即pointer和tuple之间的区域，称为hole</li>
+</ul>
+</li>
+<li><strong>RelFilenode</strong>：此结构记录了此block所属的关系</li>
+<li><strong>BlockNumber</strong>：此block记录的page的块号</li>
+</ul>
+</li>
+<li><strong>XLogRecordDataHeader(Long/short)</strong>：当main data的大小大于255时，使用Long Header</li>
+<li><strong>buffer data</strong>：第二个虚线框部分，包括page data和tuple data
+<ul>
+<li><strong>page data</strong>：由<code>XLogRegisterBuffer()</code>函数注册到wal记录，存放buffer page信息</li>
+<li><strong>tuple data</strong>：由<code>XLogRegisterBufData()</code>函数注册到wal记录，存储了实际的buff数据和变更数据。</li>
+</ul>
+</li>
+<li><strong>main data</strong>：保存非buffer性的数据，由<code>XLogRegisterData()</code>函数到WAL记录，例如特殊结构体，旧元组或key</li>
+</ul>
+<h2 id="WAL日志写入实现">WAL日志写入实现</h2>
+<p>当数据库数据发生变更时：</p>
+<ul>
+<li>change发生时：先要将变更后内容计入wal buffer中，再将变更后的数据写入data buffer；</li>
+<li>commit发生时：wal buffer中数据刷新到磁盘；</li>
+<li>checkpoint发生时：将所有data buffer刷新的磁盘。</li>
+</ul>
+<p>WAL日志机制就是先将变更内容存放到wal buffer，commit后将wal buffer刷入磁盘的过程。过程中主要的函数如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">XLogBeginInsert();        <span class="comment">// 表示开始构建 xlog</span></span><br><span class="line">XLogRegisterData();       <span class="comment">// 将WAL记录的特殊结构体数据注册到WAL，比如heap_insert中的xl_heap_insert结构体</span></span><br><span class="line">XLogRegisterBuffer();     <span class="comment">// 将涉及到的buf注册到wal记录，比如heap_insert中page页赋予regbuf-&gt;page</span></span><br><span class="line">XLogRegisterBufData();    <span class="comment">// 将元组内容注册到WAL记录，比如insert语句的元组数据等</span></span><br><span class="line">XLogSetRecordFlags();</span><br><span class="line">XLogInsert();</span><br><span class="line">    XLogRecordAssemble();</span><br><span class="line">    XLogInsertRecord();   <span class="comment">// 根据当前的数据库状态，把上述函数注册的数据进行筛选组装，最终形成完整的wal记录并写入到walbuff</span></span><br><span class="line">PageSetLSN</span><br></pre></td></tr></table></figure>
+<p><img src="/uploads/wal_process.png" alt="WAL实现过程"></p>
+<h3 id="整页写入-Full-Write-Page">整页写入(Full_Write_Page)</h3>
+<p>如果数据库系统在写入脏页的过程中出现故障，会导致磁盘上的页面数据损坏，而XLOG是无法在损坏的页面上重放的，需要整页写入来恢复。</p>
+<p>如果启用整页写入，PostgreSQL会在每个检查点后，每个页面第一次变更发生前，将整个页面以及Header信息作为一条XLog写入，这个功能默认开启。在数据库恢复过程中，如果检查到一条XLog是一个用来整页写入的备份区块，会使用另一条重放规则：XLog会直接覆盖当前页面，无视页面和XLog记录中的LSN，然后将页面的LSN更新为XLog记录的LSN</p>
+<h3 id="具体数据结构">具体数据结构</h3>
+<h4 id="XLog-Page">XLog Page</h4>
+<h5 id="XLogPageHeaderData">XLogPageHeaderData</h5>
+<p>XLog日志分为很多逻辑段文件，每个段文件分成许多个页面，每个页面的大小为一个块的大小。每个日志页面都有一个头部信息：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">XLogPageHeaderData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    uint16		xlp_magic;		<span class="comment">// 校验位，检验WAL的版本信息</span></span><br><span class="line">    uint16		xlp_info;		<span class="comment">// 标记位</span></span><br><span class="line">    TimeLineID	xlp_tli;		<span class="comment">// 页面第一条记录的时间序列</span></span><br><span class="line">    XLogRecPtr	xlp_pageaddr;	<span class="comment">// XLog页面的地址</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 当前页面没有足够空间用于记录时，继续在下一页记录</span></span><br><span class="line">    <span class="comment">// 记录了前一页的剩余字节数，包括备份块数据，即该记录在本页继续存储占用的空间大小</span></span><br><span class="line">    uint32		xlp_rem_len;</span><br><span class="line">&#125; XLogPageHeaderData;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>其中，标记位<code>xlp_info</code>只使用最低两位，0表明该页的第一个XLog记录接着上一页的最后一个XLog记录，1表示该页是该XLog文件的首页</li>
+</ul>
+<h5 id="XLogLongPageHeaderData">XLogLongPageHeaderData</h5>
+<p>如果页面是该日志文件的首页，那么在原头部信息的基础上会使用一个长的头部信息</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">XLogLongPageHeaderData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    XLogPageHeaderData <span class="built_in">std</span>;		<span class="comment">// 标准的头部信息，即 XLogPageHeaderData</span></span><br><span class="line">    uint64		xlp_sysid;		<span class="comment">// pg_control中的系统标识符</span></span><br><span class="line">    uint32		xlp_seg_size;	<span class="comment">// 校验位，段的大小</span></span><br><span class="line">    uint32		xlp_XLog_blcksz;	<span class="comment">// 校验位，块的大小</span></span><br><span class="line">&#125; XLogLongPageHeaderData;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>对于长的XLog日志记录，允许将没有足够空间存储的数据存储到下一个页面，但不允许Record头部信息被分开存储到两个不同页面。如果剩余空间已经不足以存储一个头部信息，那么剩余空间将被舍弃，将这个XLog记录存储到新的下一个页面中</li>
+</ul>
+<h4 id="XLog-Record">XLog Record</h4>
+<h5 id="XLogRecord">XLogRecord</h5>
+<p>结构<code>XLogRecord</code>记录了XLog的相关控制信息，一个XLog记录最多可以附3个备份块， 每个块对应一个磁盘大小的数据，长度为8kb</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">XLogRecord</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	uint32		xl_tot_len;		<span class="comment">// 整条记录的长度</span></span><br><span class="line">	TransactionId xl_xid;		<span class="comment">// 事务ID</span></span><br><span class="line">	XLogRecPtr	xl_prev;		<span class="comment">// 指向日志中的前一个记录</span></span><br><span class="line">	uint8		xl_info;		<span class="comment">// 信息标记位</span></span><br><span class="line">	RmgrId		xl_rmid;		<span class="comment">// 资源管理器</span></span><br><span class="line"></span><br><span class="line">	pg_crc32c	xl_crc;			<span class="comment">// 本记录的CRC校验码</span></span><br><span class="line">&#125; XLogRecord;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>其中，资源管理器号主要用于日志系统中，数据库系统需要将记录的日志数据分类，为它们分配对应的资源管理器号。读取日志记录时，结合资源管理器号和信息标志位，能够直到数据库对源数据做的是哪种操作，从而迅速正确的调用对应的函数。共有16种资源</li>
+<li>信息标志位的高4位由资源管理器使用，标识该日志是哪种类型的日志。低4位表示对应的块是否需要备份</li>
+</ul>
+<h5 id="XLogRecordBlockHeader">XLogRecordBlockHeader</h5>
+<p>存放block的相关信息</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">XLogRecordBlockHeader</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    uint8       id;             <span class="comment">// 块引用ID</span></span><br><span class="line">    uint8       fork_flags;     <span class="comment">// 在关系中使用的fork和flags</span></span><br><span class="line">    uint16      data_length;    <span class="comment">// payload字节大小</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">//如果设置了 BKPBLOCK_HAS_IMAGE,后续为XLogRecordBlockImageHeader结构体，否则为RelFileNode</span></span><br><span class="line">    <span class="comment">//之后为BlockNumber</span></span><br><span class="line">&#125; XLogRecordBlockHeader;</span><br></pre></td></tr></table></figure>
+<h5 id="XLogRecordBlockImageHeader">XLogRecordBlockImageHeader</h5>
+<p>存放整页写入的相关信息</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">XLogRecordBlockImageHeader</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	uint16		length;			<span class="comment">// page大小</span></span><br><span class="line">	uint16		hole_offset;	<span class="comment">// hole之前的长度</span></span><br><span class="line">	uint8		bimg_info;		<span class="comment">// 标记位，是否压缩</span></span><br><span class="line">&#125; XLogRecordBlockImageHeader;</span><br></pre></td></tr></table></figure>
+<h5 id="XLogRecordBlockCompressHeader">XLogRecordBlockCompressHeader</h5>
+<p>存放page中的hole大小</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">XLogRecordBlockCompressHeader</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	uint16		hole_length;	<span class="comment">// hole大小</span></span><br><span class="line">&#125; XLogRecordBlockCompressHeader;</span><br></pre></td></tr></table></figure>
+<h4 id="XLog-Data">XLog Data</h4>
+<h5 id="XLogRecordDataHeader">XLogRecordDataHeader</h5>
+<p>WAL Record的数据部分的header信息</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">XLogRecordDataHeaderShort</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    uint8       id;</span><br><span class="line">    uint8       data_length;</span><br><span class="line">&#125;XLogRecordDataHeaderShort;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">XLogRecordDataHeaderLong</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    uint8       id;</span><br><span class="line">&#125;XLogRecordDataHeaderLong;</span><br></pre></td></tr></table></figure>
+<h5 id="XLogRecData">XLogRecData</h5>
+<p>XLog日志记录中的数据信息存储在结构<code>XLogRecData</code>中</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">XLogRecData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">XLogRecData</span> *<span class="title">next</span>;</span>	<span class="comment">// 下一个节点</span></span><br><span class="line">	<span class="type">char</span>    *data;		<span class="comment">// 数据</span></span><br><span class="line">	uint32	len;		<span class="comment">// 数据长度</span></span><br><span class="line">&#125; XLogRecData;</span><br></pre></td></tr></table></figure>
+<h4 id="XLog控制结构">XLog控制结构</h4>
+<h5 id="XLogCtlData">XLogCtlData</h5>
+<p>在共享内存中用结构<code>XLogCtlData</code>保存XLog信息</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">XLogCtlData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    XLogCtlInsert Insert;		<span class="comment">// 插入一条日志后，最新的相关信息</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 以下受info_lck保护</span></span><br><span class="line">    XLogwrtRqst LogwrtRqst;		<span class="comment">// 将日志写入和同步的位置</span></span><br><span class="line">    XLogRecPtr	RedoRecPtr;		<span class="comment">// 最近的 Insert-&gt;RedoRecPtr 副本</span></span><br><span class="line">    FullTransactionId ckptFullXid;	<span class="comment">// 最新检查点的nextXID</span></span><br><span class="line">    XLogRecPtr	asyncXactLSN;	<span class="comment">// 最新异步提交/中断的LSN</span></span><br><span class="line">    XLogRecPtr	replicationSlotMinLSN;	<span class="comment">// 所有缓冲区所需的最老的LSN</span></span><br><span class="line"></span><br><span class="line">    XLogSegNo	lastRemovedSegNo;	<span class="comment">// 最后的删除/回收的XLog段</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 用于不需要记录日志的关系的假的LSN</span></span><br><span class="line">    XLogRecPtr	unloggedLSN;</span><br><span class="line">    <span class="type">slock_t</span>		ulsn_lck;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 切换后最新的XLog的时间和LSN，受XLogWriteLock保护</span></span><br><span class="line">    <span class="type">pg_time_t</span>	lastSegSwitchTime;</span><br><span class="line">    XLogRecPtr	lastSegSwitchLSN;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 已经写入和同步的位置，受info_lck或XLogWriteLock保护</span></span><br><span class="line">    XLogwrtResult LogwrtResult;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 缓存中的最后初始化页面，最后一个字节位置+1</span></span><br><span class="line">    XLogRecPtr	InitializedUpTo;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 这些值在启动后不会修改，尽管指向的页面和xlblocks通常会改变</span></span><br><span class="line">    <span class="comment">// xlblocks受 XLogBufMappingLock 保护</span></span><br><span class="line">    <span class="type">char</span>	   *pages;			<span class="comment">// 未写入XLog页面的缓冲区</span></span><br><span class="line">    XLogRecPtr *xlblocks;		<span class="comment">// 缓冲区内容对应的XLog文件的内部指针</span></span><br><span class="line">    <span class="type">int</span>			XLogCacheBlck;	<span class="comment">// XLog最大缓冲区的下标</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// ThisTimeLineID 的共享副本，在完成恢复后不要修改</span></span><br><span class="line">    TimeLineID	ThisTimeLineID;</span><br><span class="line">    TimeLineID	PrevTimeLineID;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 标记我们是否处于崩溃或恢复状态，受info_lock保护</span></span><br><span class="line">    RecoveryState SharedRecoveryState;</span><br><span class="line">    <span class="type">bool</span>		SharedHotStandbyActive;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 指示XLog写入是否处于节能模式，受info_lock保护</span></span><br><span class="line">    <span class="type">bool</span>		XLogWriterSleeping;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 等待唤醒，如果出现出发文件，则唤醒启动进程以继续执行XLog重放</span></span><br><span class="line">    Latch		recoveryWakeupLatch;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 在恢复期间保留最后检查点记录的副本，受info_lck保护</span></span><br><span class="line">    XLogRecPtr	lastCheckPointRecPtr;</span><br><span class="line">    XLogRecPtr	lastCheckPointEndPtr;</span><br><span class="line">    CheckPoint	lastCheckPoint;</span><br><span class="line"></span><br><span class="line">    XLogRecPtr	lastReplayedEndRecPtr;	<span class="comment">// 指向成功重放的最后一条记录的结尾+1</span></span><br><span class="line">    TimeLineID	lastReplayedTLI;</span><br><span class="line">    XLogRecPtr	replayEndRecPtr;		<span class="comment">// 如果正处于redo函数回放记录期间，则指向正在恢复记录的结尾+1</span></span><br><span class="line">    									<span class="comment">// 否则等于lastReplayedEndRecPtr</span></span><br><span class="line">    TimeLineID	replayEndTLI;</span><br><span class="line">    TimestampTz recoveryLastXTime;		<span class="comment">// 重放（正在重放）的最后一个COMMIT/ABORT记录的时间戳</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 开始重放当前XLog数据块的时间戳</span></span><br><span class="line">    TimestampTz currentChunkStartTime;</span><br><span class="line"></span><br><span class="line">    <span class="type">bool</span>		recoveryPause;	<span class="comment">// 是否暂停恢复</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 指向最后重放的XLog_FPW_CHANGE记录的起始点</span></span><br><span class="line">    <span class="comment">// 用于禁用full_page_writes</span></span><br><span class="line">    XLogRecPtr	lastFpwDisableRecPtr;</span><br><span class="line"></span><br><span class="line">    <span class="type">slock_t</span>		info_lck;		<span class="comment">// 共享锁</span></span><br><span class="line">&#125; XLogCtlData;</span><br></pre></td></tr></table></figure>
+<h5 id="Register-buffer">Register_buffer</h5>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	<span class="type">bool</span>		in_use;			<span class="comment">// is this slot in use?</span></span><br><span class="line">	uint8		flags;			<span class="comment">// REGBUF_* flags</span></span><br><span class="line">	RelFileNode rnode;			<span class="comment">// 指定所属表的存储目录</span></span><br><span class="line">	ForkNumber	forkno;         <span class="comment">// 哪种文件类型</span></span><br><span class="line">	BlockNumber block;          <span class="comment">// 块编号</span></span><br><span class="line">	Page		page;			<span class="comment">// 对应的原始数据页</span></span><br><span class="line"></span><br><span class="line">	uint32		rdata_len;		<span class="comment">// 私有数据链表的长度总和</span></span><br><span class="line">	XLogRecData *rdata_head;	<span class="comment">// 私有数据链表头部节点</span></span><br><span class="line">	XLogRecData *rdata_tail;	<span class="comment">// 私有数据链表尾部节点</span></span><br><span class="line"></span><br><span class="line">	XLogRecData bkp_rdatas[<span class="number">2</span>];	<span class="comment">// 存储着压缩后或忽略空闲数据的数据，如果有空闲位置且没有压缩，那么数据会被分成两个部分，存储在两个数组元素里</span></span><br><span class="line"></span><br><span class="line">	<span class="type">char</span>		compressed_page[PGLZ_MAX_BLCKSZ]; <span class="comment">// 如果开启了压缩，那么存储着压缩后的数据</span></span><br><span class="line">&#125; registered_buffer;</span><br></pre></td></tr></table></figure>
+<h4 id="重要全局变量">重要全局变量</h4>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> XLogRecData *mainrdata_head;</span><br><span class="line"><span class="type">static</span> XLogRecData *mainrdata_last = (XLogRecData *) &amp;mainrdata_head;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*使用XLogRegisterBuffer注册的数据存储到registered_buffers数组里*/</span></span><br><span class="line"><span class="type">static</span> registered_buffer *registered_buffers;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * 使用XLogRegisterBufData注册的数据存储到rdatas数组里，并链接为链表，使用registered_buffer结构里的rdata_head和</span></span><br><span class="line"><span class="comment"> * rdata_tail作为链表的首尾。</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 使用XLogRegisterData注册的数据存储到rdatas数组里，并使用mainrdata_head和mainrdata_lastata注册的数据存储到rdatas数组里，</span></span><br><span class="line"><span class="comment"> * 并链接为链表，使用registered_buffer结构里的rdata_head和rdata_tail作为链表的首尾。</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="type">static</span> XLogRecData *rdatas;</span><br></pre></td></tr></table></figure>
+<h3 id="具体函数代码">具体函数代码</h3>
+<h4 id="XLogBeginInsert">XLogBeginInsert</h4>
+<p>函数主要作用是检验调用环境是否正确，判断当前是否可以执行xlog插入，并设置开始构造WAL记录的标记，标志wal插入开始。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">Assert(max_registered_block_id == <span class="number">0</span>);</span><br><span class="line">Assert(mainrdata_last == (XLogRecData *) &amp;mainrdata_head);</span><br><span class="line">Assert(mainrdata_len == <span class="number">0</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (!XLogInsertAllowed())</span><br><span class="line">    elog(ERROR, <span class="string">&quot;cannot make new WAL entries during recovery&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (begininsert_called)</span><br><span class="line">    elog(ERROR, <span class="string">&quot;XLogBeginInsert was already called&quot;</span>);</span><br><span class="line"></span><br><span class="line">begininsert_called = <span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
+<h4 id="XLogRegisterData">XLogRegisterData</h4>
+<ol>
+<li>
+<p>将本条wal记录的特殊结构体数据注册到wal记录，比如XLOG_HEAP_INSERT子类型的xl_heap_insert结构体。</p>
+</li>
+<li>
+<p>将一些旧元组数据注册到wal记录，比如执行update语句的旧元组数据、delete语句的旧元组数据。</p>
+</li>
+</ol>
+<p><img src="/uploads/xlog_register_data.jpg" alt="img"></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 检查是否已经开始构造WAL</span></span><br><span class="line">Assert(begininsert_called);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 检查数据量是否超过限制值</span></span><br><span class="line"><span class="keyword">if</span> (num_rdatas &gt;= max_rdatas)</span><br><span class="line">    elog(ERROR, <span class="string">&quot;too much WAL data&quot;</span>);</span><br><span class="line">rdata = &amp;rdatas[num_rdatas++];</span><br><span class="line"></span><br><span class="line">rdata-&gt;data = data;</span><br><span class="line">rdata-&gt;len = len;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 使用 mainrdata_last 指针跟踪链条的结束点,在这里不需要清除next变量</span></span><br><span class="line">mainrdata_last-&gt;next = rdata;</span><br><span class="line">mainrdata_last = rdata;</span><br><span class="line"></span><br><span class="line">mainrdata_len += len;</span><br></pre></td></tr></table></figure>
+<h4 id="XLogRegisterBuffer">XLogRegisterBuffer</h4>
+<p>将涉及到的buff注册到wal记录，比如insert语句的目标buff、update语句的目标buff和源buff</p>
+<p><img src="/uploads/xlog_register_buf.jpg" alt="img"></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 找到registered_buffer数组中第一个空的的位置</span></span><br><span class="line"><span class="keyword">if</span> (block_id &gt;= max_registered_block_id)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">if</span> (block_id &gt;= max_registered_buffers)</span><br><span class="line">        elog(ERROR, <span class="string">&quot;too many registered buffers&quot;</span>);</span><br><span class="line">    max_registered_block_id = block_id + <span class="number">1</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 将这个buffer的数据填充</span></span><br><span class="line">regbuf = &amp;registered_buffers[block_id];</span><br><span class="line"></span><br><span class="line">BufferGetTag(buffer, &amp;regbuf-&gt;rnode, &amp;regbuf-&gt;forkno, &amp;regbuf-&gt;block);</span><br><span class="line">regbuf-&gt;page = BufferGetPage(buffer);</span><br><span class="line">regbuf-&gt;flags = flags;</span><br><span class="line">regbuf-&gt;rdata_tail = (XLogRecData *) &amp;regbuf-&gt;rdata_head;</span><br><span class="line">regbuf-&gt;rdata_len = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 将缓冲区标记为已使用</span></span><br><span class="line">regbuf-&gt;in_use = <span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
+<h4 id="XLogRegisterBufData">XLogRegisterBufData</h4>
+<p>函数主要作用是将元组内容注册到WAL记录中。需要参数block id，这个id必须是已经通过<code>XLogRegisterBuffer</code>注册的block</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 读取已经注册的缓冲区结构</span></span><br><span class="line">regbuf = &amp;registered_buffers[block_id];</span><br><span class="line"><span class="keyword">if</span> (!regbuf-&gt;in_use)</span><br><span class="line">    elog(ERROR, <span class="string">&quot;no block with id %d registered with WAL insertion&quot;</span>,</span><br><span class="line">         block_id);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 读取buffer数据</span></span><br><span class="line"><span class="keyword">if</span> (num_rdatas &gt;= max_rdatas)</span><br><span class="line">    elog(ERROR, <span class="string">&quot;too much WAL data&quot;</span>);</span><br><span class="line">rdata = &amp;rdatas[num_rdatas++];</span><br><span class="line"></span><br><span class="line">rdata-&gt;data = data;</span><br><span class="line">rdata-&gt;len = len;</span><br><span class="line"></span><br><span class="line">regbuf-&gt;rdata_tail-&gt;next = rdata;</span><br><span class="line">regbuf-&gt;rdata_tail = rdata;</span><br><span class="line">regbuf-&gt;rdata_len += len;</span><br></pre></td></tr></table></figure>
+<h4 id="XLogInsert">XLogInsert</h4>
+<p>插入WAL的操作由函数<code>XLogInsert</code>完成，根据Rdata链表和相应的资源管理器info向WAL日志文件中插入一条WAL记录。事务执行插入，删除，更新，提交，终止或回滚命令时都需要调用此函数</p>
+<ul>
+<li>判断调用时是否设置了rmgr标记位：</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ((info &amp; ~(XLR_RMGR_INFO_MASK |</span><br><span class="line">              XLR_SPECIAL_REL_UPDATE |</span><br><span class="line">              XLR_CHECK_CONSISTENCY)) != <span class="number">0</span>)</span><br><span class="line">    elog(PANIC, <span class="string">&quot;invalid xlog info mask %02X&quot;</span>, info);</span><br></pre></td></tr></table></figure>
+<ul>
+<li>如果处于bootstrap模式，除了XLog资源外，不需要实际记录内容，指向第一个检查点的指针</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (IsBootstrapProcessingMode() &amp;&amp; rmid != RM_XLog_ID)</span><br><span class="line">&#123;</span><br><span class="line">    XLogResetInsertion();</span><br><span class="line">    EndPos = SizeOfXLogLongPHD;</span><br><span class="line">    <span class="keyword">return</span> EndPos;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>组合成完整的WAL记录并写入WAL日志</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">do</span></span><br><span class="line">&#123;</span><br><span class="line">    XLogRecPtr	RedoRecPtr;</span><br><span class="line">    <span class="type">bool</span>		doPageWrites;</span><br><span class="line">    XLogRecPtr	fpw_lsn;</span><br><span class="line">    XLogRecData *rdt;</span><br><span class="line"></span><br><span class="line">    GetFullPageWriteInfo(&amp;RedoRecPtr, &amp;doPageWrites);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 调用函数组装注册的数据</span></span><br><span class="line">    rdt = XLogRecordAssemble(rmid, info, RedoRecPtr, doPageWrites,</span><br><span class="line">                             &amp;fpw_lsn);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 将组装好的数据写入到WAL内存中</span></span><br><span class="line">    EndPos = XLogInsertRecord(rdt, fpw_lsn, curinsert_flags);</span><br><span class="line">&#125; <span class="keyword">while</span> (EndPos == InvalidXLogRecPtr);</span><br></pre></td></tr></table></figure>
+<h4 id="XLogRecordAssemble">XLogRecordAssemble</h4>
+<p>函数用于将已注册的数据和缓冲区页面数据组装成一条WAL记录，将其写入到<code>XLogRecData</code>链表中。</p>
+<p>执行到这个阶段，wal记录的数据存储在：</p>
+<ol>
+<li>mainrdata_head</li>
+<li>每一个注册的buff的rdata_head</li>
+<li>每一个注册的buff的page字段中</li>
+</ol>
+<p>函数执行过程如下：</p>
+<ul>
+<li>保存头部信息</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">XLogRecData *rdt;		<span class="comment">// XLogRecData链表指针</span></span><br><span class="line">uint32		total_len = <span class="number">0</span>;</span><br><span class="line"><span class="type">int</span>			block_id;</span><br><span class="line">pg_crc32c	rdata_crc;</span><br><span class="line">registered_buffer *prev_regbuf = <span class="literal">NULL</span>;</span><br><span class="line">XLogRecData *rdt_datas_last;</span><br><span class="line">XLogRecord *rechdr;</span><br><span class="line"><span class="type">char</span>	   *scratch = hdr_scratch;</span><br><span class="line"></span><br><span class="line">rechdr = (XLogRecord *) scratch;</span><br><span class="line">scratch += SizeOfXLogRecord;</span><br><span class="line"></span><br><span class="line">hdr_rdt.next = <span class="literal">NULL</span>;</span><br><span class="line">rdt_datas_last = &amp;hdr_rdt;</span><br><span class="line">hdr_rdt.data = hdr_scratch;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>构造保存所有块公用的数据部分的rdata链</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br></pre></td><td class="code"><pre><span class="line">*fpw_lsn = InvalidXLogRecPtr;</span><br><span class="line"><span class="keyword">for</span> (block_id = <span class="number">0</span>; block_id &lt; max_registered_block_id; block_id++)</span><br><span class="line">&#123;</span><br><span class="line">    registered_buffer *regbuf = &amp;registered_buffers[block_id];</span><br><span class="line">    XLogRecordBlockHeader bkpb;</span><br><span class="line">    XLogRecordBlockImageHeader bimg;</span><br><span class="line">    XLogRecordBlockCompressHeader cbimg = &#123;<span class="number">0</span>&#125;;</span><br><span class="line">    <span class="type">bool</span>		samerel;</span><br><span class="line">    <span class="type">bool</span>		is_compressed = <span class="literal">false</span>;</span><br><span class="line">    <span class="type">bool</span>		include_image;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 设置block头部信息</span></span><br><span class="line">    bkpb.id = block_id;</span><br><span class="line">    bkpb.fork_flags = regbuf-&gt;forkno;</span><br><span class="line">    bkpb.data_length = <span class="number">0</span>;</span><br><span class="line">    <span class="comment">// 设置标记位</span></span><br><span class="line">    <span class="keyword">if</span> ((regbuf-&gt;flags &amp; REGBUF_WILL_INIT) == REGBUF_WILL_INIT)</span><br><span class="line">        bkpb.fork_flags |= BKPBLOCK_WILL_INIT;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 执行full_page_write，写入XLogRecordBlockImageHeader</span></span><br><span class="line">    <span class="keyword">if</span> (include_image)</span><br><span class="line">    &#123;</span><br><span class="line">        Page        page = regbuf-&gt;page;	<span class="comment">// 获取对应的page</span></span><br><span class="line">        uint16      compressed_len = <span class="number">0</span>;		<span class="comment">// 压缩后的大小</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">// page需要备份，计算空闲空间大小和偏移</span></span><br><span class="line">        <span class="comment">// &quot;hole&quot;指的是page中的空白区域</span></span><br><span class="line">        <span class="keyword">if</span> (regbuf-&gt;flags &amp; REGBUF_STANDARD)</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="comment">// 如果页面遵循标准布局，lower和upper指针将被跳过</span></span><br><span class="line">            uint16      lower = ((PageHeader) page)-&gt;pd_lower;	<span class="comment">// 获取lower</span></span><br><span class="line">            uint16      upper = ((PageHeader) page)-&gt;pd_upper;	<span class="comment">// 获取upper</span></span><br><span class="line"></span><br><span class="line">            <span class="comment">// 判断page中是否存在&quot;hole&quot;</span></span><br><span class="line">            <span class="keyword">if</span> (lower &gt;= SizeOfPageHeaderData &amp;&amp;</span><br><span class="line">                upper &gt; lower &amp;&amp;</span><br><span class="line">                upper &lt;= BLCKSZ)</span><br><span class="line">            &#123;</span><br><span class="line">                <span class="comment">// 计算“hole”的长度的偏移量</span></span><br><span class="line">                bimg.hole_offset = lower;</span><br><span class="line">                cbimg.hole_length = upper - lower;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">else</span></span><br><span class="line">            &#123;</span><br><span class="line">                <span class="comment">// 没有可以移除的&quot;hole&quot;</span></span><br><span class="line">                bimg.hole_offset = <span class="number">0</span>;</span><br><span class="line">                cbimg.hole_length = <span class="number">0</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">        &#123;</span><br><span class="line">            <span class="comment">// 不是标准的页面布局，无法尝试估算&quot;hole&quot;</span></span><br><span class="line">            bimg.hole_offset = <span class="number">0</span>;</span><br><span class="line">            cbimg.hole_length = <span class="number">0</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 启用WAL压缩</span></span><br><span class="line">        <span class="keyword">if</span> (wal_compression)</span><br><span class="line">        &#123;</span><br><span class="line">            is_compressed =</span><br><span class="line">                XLogCompressBackupBlock(page, bimg.hole_offset,</span><br><span class="line">                                        cbimg.hole_length,</span><br><span class="line">                                        regbuf-&gt;compressed_page,</span><br><span class="line">                                        &amp;compressed_len);	<span class="comment">// 调用XLogCompressBackupBlock压缩</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 填充XLogRecordBlockHeader结构体的剩余字段</span></span><br><span class="line">        bkpb.fork_flags |= BKPBLOCK_HAS_IMAGE;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 为page内容构造XLogRecData入口</span></span><br><span class="line">        rdt_datas_last-&gt;next = &amp;regbuf-&gt;bkp_rdatas[<span class="number">0</span>];</span><br><span class="line">        rdt_datas_last = rdt_datas_last-&gt;next;</span><br><span class="line">        <span class="comment">// 设置标记</span></span><br><span class="line">        bimg.bimg_info = (cbimg.hole_length == <span class="number">0</span>) ? <span class="number">0</span> : BKPIMAGE_HAS_HOLE;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 在redo期间,在设置了BKPIMAGE_APPLY标记的情况下full-page才会回放.</span></span><br><span class="line">        <span class="keyword">if</span> (needs_backup)</span><br><span class="line">            bimg.bimg_info |= BKPIMAGE_APPLY;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 需要压缩</span></span><br><span class="line">        <span class="keyword">if</span> (is_compressed)</span><br><span class="line">        &#123;</span><br><span class="line">            bimg.length = compressed_len;	<span class="comment">// 压缩后的空间</span></span><br><span class="line">            bimg.bimg_info |= BKPIMAGE_IS_COMPRESSED;	<span class="comment">// 压缩标记</span></span><br><span class="line"></span><br><span class="line">            rdt_datas_last-&gt;data = regbuf-&gt;compressed_page;	<span class="comment">// 放在registered_buffer中</span></span><br><span class="line">            rdt_datas_last-&gt;len = compressed_len;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span></span><br><span class="line">        &#123;</span><br><span class="line">            <span class="comment">// 没有压缩，计算image的大小</span></span><br><span class="line">            bimg.length = BLCKSZ - cbimg.hole_length;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 如果没有&quot;hole&quot;存在</span></span><br><span class="line">            <span class="keyword">if</span> (cbimg.hole_length == <span class="number">0</span>)</span><br><span class="line">            &#123;</span><br><span class="line">                rdt_datas_last-&gt;data = page;	<span class="comment">// 数据指针直接指向page</span></span><br><span class="line">                rdt_datas_last-&gt;len = BLCKSZ;	<span class="comment">// 大小为block size</span></span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">else</span></span><br><span class="line">            &#123;</span><br><span class="line">                <span class="comment">// 跳过hole</span></span><br><span class="line">                rdt_datas_last-&gt;data = page;	<span class="comment">// 数据指针</span></span><br><span class="line">                rdt_datas_last-&gt;len = bimg.hole_offset;<span class="comment">// 获取hole的偏移</span></span><br><span class="line"></span><br><span class="line">                rdt_datas_last-&gt;next = &amp;regbuf-&gt;bkp_rdatas[<span class="number">1</span>];<span class="comment">// 第2部分</span></span><br><span class="line">                rdt_datas_last = rdt_datas_last-&gt;next;</span><br><span class="line"></span><br><span class="line">                rdt_datas_last-&gt;data =</span><br><span class="line">                    page + (bimg.hole_offset + cbimg.hole_length);<span class="comment">// 指针指向第二部分</span></span><br><span class="line">                rdt_datas_last-&gt;len =</span><br><span class="line">                    BLCKSZ - (bimg.hole_offset + cbimg.hole_length);<span class="comment">// 设置长度</span></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        total_len += bimg.length;	<span class="comment">// 调整总长度</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 如果需要包含数据</span></span><br><span class="line">    <span class="keyword">if</span> (needs_data)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="comment">// 把该缓冲区链接到调用者提供的rdata链中，构成一个整体的链表</span></span><br><span class="line">        bkpb.fork_flags |= BKPBLOCK_HAS_DATA;</span><br><span class="line">        bkpb.data_length = regbuf-&gt;rdata_len;</span><br><span class="line">        total_len += regbuf-&gt;rdata_len;</span><br><span class="line"></span><br><span class="line">        rdt_datas_last-&gt;next = regbuf-&gt;rdata_head;</span><br><span class="line">        rdt_datas_last = regbuf-&gt;rdata_tail;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 如果存在上一个注册的buf，而且RefFileNode相同</span></span><br><span class="line">    <span class="keyword">if</span> (prev_regbuf &amp;&amp; RelFileNodeEquals(regbuf-&gt;rnode, prev_regbuf-&gt;rnode))</span><br><span class="line">    &#123;</span><br><span class="line">        samerel = <span class="literal">true</span>;</span><br><span class="line">        bkpb.fork_flags |= BKPBLOCK_SAME_REL;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">        samerel = <span class="literal">false</span>;</span><br><span class="line">    <span class="comment">// 切换为当前的注册的buf</span></span><br><span class="line">    prev_regbuf = regbuf;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 拷贝头部信息到scratch缓冲区中</span></span><br><span class="line">    <span class="built_in">memcpy</span>(scratch, &amp;bkpb, SizeOfXLogRecordBlockHeader);</span><br><span class="line">    scratch += SizeOfXLogRecordBlockHeader;</span><br><span class="line">    <span class="keyword">if</span> (include_image)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="built_in">memcpy</span>(scratch, &amp;bimg, SizeOfXLogRecordBlockImageHeader);</span><br><span class="line">        scratch += SizeOfXLogRecordBlockImageHeader;</span><br><span class="line">        <span class="comment">// 压缩存储,追加SizeOfXLogRecordBlockCompressHeader</span></span><br><span class="line">        <span class="keyword">if</span> (cbimg.hole_length != <span class="number">0</span> &amp;&amp; is_compressed)</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="built_in">memcpy</span>(scratch, &amp;cbimg,</span><br><span class="line">                   SizeOfXLogRecordBlockCompressHeader);</span><br><span class="line">            scratch += SizeOfXLogRecordBlockCompressHeader;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 不是同一个REL，追加RelFileNode</span></span><br><span class="line">    <span class="keyword">if</span> (!samerel)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="built_in">memcpy</span>(scratch, &amp;regbuf-&gt;rnode, <span class="keyword">sizeof</span>(RelFileNode));</span><br><span class="line">        scratch += <span class="keyword">sizeof</span>(RelFileNode);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 追加BlockNumber</span></span><br><span class="line">    <span class="built_in">memcpy</span>(scratch, &amp;regbuf-&gt;block, <span class="keyword">sizeof</span>(BlockNumber));</span><br><span class="line">    scratch += <span class="keyword">sizeof</span>(BlockNumber);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>接下来组装XLog Record origin标记</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> ((curinsert_flags &amp; XLog_INCLUDE_ORIGIN) &amp;&amp;</span><br><span class="line">    replorigin_session_origin != InvalidRepOriginId)</span><br><span class="line">&#123;</span><br><span class="line">    *(scratch++) = (<span class="type">char</span>) XLR_BLOCK_ID_ORIGIN;</span><br><span class="line">    <span class="built_in">memcpy</span>(scratch, &amp;replorigin_session_origin, <span class="keyword">sizeof</span>(replorigin_session_origin));</span><br><span class="line">    scratch += <span class="keyword">sizeof</span>(replorigin_session_origin);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>接下来组装数据（main data）</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (mainrdata_len &gt; <span class="number">0</span>)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// 长度超过255，则使用Long格式</span></span><br><span class="line">    <span class="keyword">if</span> (mainrdata_len &gt; <span class="number">255</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        *(scratch++) = (<span class="type">char</span>) XLR_BLOCK_ID_DATA_LONG;</span><br><span class="line">        <span class="built_in">memcpy</span>(scratch, &amp;mainrdata_len, <span class="keyword">sizeof</span>(uint32));</span><br><span class="line">        scratch += <span class="keyword">sizeof</span>(uint32);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">        *(scratch++) = (<span class="type">char</span>) XLR_BLOCK_ID_DATA_SHORT;</span><br><span class="line">        *(scratch++) = (uint8) mainrdata_len;</span><br><span class="line">    &#125;</span><br><span class="line">    rdt_datas_last-&gt;next = mainrdata_head;</span><br><span class="line">    rdt_datas_last = mainrdata_last;</span><br><span class="line">    total_len += mainrdata_len;</span><br><span class="line">&#125;</span><br><span class="line">rdt_datas_last-&gt;next = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">hdr_rdt.len = (scratch - hdr_scratch);	<span class="comment">// 头部大小</span></span><br><span class="line">total_len += hdr_rdt.len;	<span class="comment">// 总长度</span></span><br></pre></td></tr></table></figure>
+<ul>
+<li>计算数据的CRC</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">INIT_CRC32C(rdata_crc);</span><br><span class="line">COMP_CRC32C(rdata_crc, hdr_scratch + SizeOfXLogRecord, hdr_rdt.len - SizeOfXLogRecord);</span><br><span class="line"><span class="keyword">for</span> (rdt = hdr_rdt.next; rdt != <span class="literal">NULL</span>; rdt = rdt-&gt;next)</span><br><span class="line">    COMP_CRC32C(rdata_crc, rdt-&gt;data, rdt-&gt;len);</span><br></pre></td></tr></table></figure>
+<ul>
+<li>最后填充记录头部信息的其他域字段</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">rechdr-&gt;xl_xid = GetCurrentTransactionIdIfAny();</span><br><span class="line">rechdr-&gt;xl_tot_len = total_len;</span><br><span class="line">rechdr-&gt;xl_info = info;</span><br><span class="line">rechdr-&gt;xl_rmid = rmid;</span><br><span class="line">rechdr-&gt;xl_prev = InvalidXLogRecPtr;</span><br><span class="line">rechdr-&gt;xl_crc = rdata_crc;</span><br><span class="line"></span><br><span class="line"><span class="keyword">return</span> &amp;hdr_rdt;</span><br></pre></td></tr></table></figure>
+<h4 id="XLogInsertRecord">XLogInsertRecord</h4>
+<p>将<code>XLogRecordAssemble</code>组装好的记录插入到WAL内存中。过程分两步：</p>
+<ul>
+<li>在内存中为WAL记录保留足够的空间</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (isLogSwitch)</span><br><span class="line">    inserted = ReserveXLogSwitch(&amp;StartPos, &amp;EndPos, &amp;rechdr-&gt;xl_prev);</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">&#123;</span><br><span class="line">    ReserveXLogInsertLocation(rechdr-&gt;xl_tot_len, &amp;StartPos, &amp;EndPos,</span><br><span class="line">                              &amp;rechdr-&gt;xl_prev);</span><br><span class="line">    inserted = <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>将记录复制到WAL内存中</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (inserted)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// 计算头部的CRC</span></span><br><span class="line">    rdata_crc = rechdr-&gt;xl_crc;</span><br><span class="line">    COMP_CRC32C(rdata_crc, rechdr, offsetof(XLogRecord, xl_crc));</span><br><span class="line">    FIN_CRC32C(rdata_crc);</span><br><span class="line">    rechdr-&gt;xl_crc = rdata_crc;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 所有的数据，包括header信息，均可以进行插入</span></span><br><span class="line">    CopyXLogRecordToWAL(rechdr-&gt;xl_tot_len, isLogSwitch, rdata,</span><br><span class="line">                        StartPos, EndPos);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 更新最后一条重要记录的LSN，当持有锁时，只更新第一个</span></span><br><span class="line">    <span class="keyword">if</span> ((flags &amp; XLog_MARK_UNIMPORTANT) == <span class="number">0</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="type">int</span>			lockno = holdingAllLocks ? <span class="number">0</span> : MyLockNo;</span><br><span class="line"></span><br><span class="line">        WALInsertLocks[lockno].l.lastImportantAt = StartPos;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="PageSetLSN">PageSetLSN</h4>
+<p>更新被修改的Page LSN</p>
+<br>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="https://spike1337.github.io/2023/02/03/pg-wal-source-code/" title="PostgreSQL · 源码解析 · WAL日志" target="_blank" rel="external">https://spike1337.github.io/2023/02/03/pg-wal-source-code/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/Spike1337" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/Spike1337" target="_blank"><span class="text-dark">Spike</span><small class="ml-1x">Code for fun</small></a></h3>
+        <div>A student</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+      <div id="vcomments"></div>
+    
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/2023/02/06/mvcc-source-code/" title="PostgreSQL · 源码解析 · MVCC机制"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;Newer</span></a>
+    </li>
+    
+    
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+    
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/Spike1337" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Weibo" data-toggle=tooltip data-placement=top><i class="icon icon-weibo"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Twitter" data-toggle=tooltip data-placement=top><i class="icon icon-twitter"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Behance" data-toggle=tooltip data-placement=top><i class="icon icon-behance"></i></a></li>
+        
+        <li><a href="/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+        <div class="copyright">
+            
+                &copy; 2023
+                    Spike
+                        
+                            <div class="publishby">
+                                <!-- Theme by <a href="https://github.com/cofess" target="_blank">
+                                        cofess </a>
+                                    base on <a href="https://github.com/cofess/hexo-theme-pure"
+                                            target="_blank">pure</a>. -->
+                                Theme by <a href="https://github.com/cofess" target="_blank">
+                                        cofess </a>
+                                    base on <a href="https://github.com/cofess/hexo-theme-pure"
+                                            target="_blank">pure</a>.
+                            </div>
+        </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/js/plugin.min.js"></script>
+
+
+<script src="/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: 'Posts',
+            PAGES: 'Pages',
+            CATEGORIES: 'Categories',
+            TAGS: 'Tags',
+            UNTITLED: '(Untitled)',
+        },
+        ROOT_URL: '/',
+        CONTENT_URL: '/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/js/insight.js"></script>
+
+
+
+
+
+
+   
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+   
+    
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/valine"></script>
+  <script type="text/javascript">
+  var GUEST = ['nick', 'mail', 'link'];
+  var meta = 'nick,mail';
+  meta = meta.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#vcomments',
+    verify: false,
+    notify: false,
+    appId: '',
+    appKey: '',
+    placeholder: 'Just go go',
+    avatar: 'retro',
+    meta: meta,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+  </script>
+
+     
+
+
+
+
+
+
+
+<script src="/live2dw/lib/L2Dwidget.min.js?094cbace49a39548bed64abff5988b05"></script><script>L2Dwidget.init({"pluginRootPath":"live2dw/","pluginJsPath":"lib/","pluginModelPath":"assets/","tagMode":false,"log":false,"model":{"jsonPath":"/live2dw/assets/koharu.model.json"},"display":{"position":"right","width":150,"height":300},"mobile":{"show":true},"react":{"opacity":0.7}});</script></body>
+</html>

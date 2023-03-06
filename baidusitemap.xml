@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://spike1337.github.io/2023/02/07/devtodo-manual/</loc>
+    <lastmod>2023-02-28</lastmod>
+  </url>
+  <url>
+    <loc>https://spike1337.github.io/2023/02/06/mvcc-source-code/</loc>
+    <lastmod>2023-02-28</lastmod>
+  </url>
+  <url>
+    <loc>https://spike1337.github.io/2023/02/03/pg-wal-source-code/</loc>
+    <lastmod>2023-02-28</lastmod>
+  </url>
+</urlset> 

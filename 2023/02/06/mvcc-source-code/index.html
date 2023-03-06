@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang=en>
+<head>
+  <meta charset="utf-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-transform" />
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="format-detection" content="telephone=no,email=no,adress=no">
+  <!-- Color theme for statusbar -->
+  <meta name="theme-color" content="#000000" />
+  <!-- 强制页面在当前窗口以独立页面显示,防止别人在框架里调用页面 -->
+  <meta http-equiv="window-target" content="_top" />
+  
+  
+  <title>PostgreSQL · 源码解析 · MVCC机制 | Spike&#39;s Blog</title>
+  <meta name="description" content="事务隔离级别  标准事务隔离级别 PostgreSQL的隔离级别   MVCC架构  元组相关数据结构 MVCC  MVCC与快照   MVCC机制的实现      PostgreSQL采用多版本并发控制（MVCC）来维护数据的一致性。检索数据时，每个事务看到的都只是一段时间之前的数据快照。MVCC并不能解决所有的并发控制情况，需要使用传统数据库的锁机制来保证事务的并发，因此在PostgreSQ">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PostgreSQL · 源码解析 · MVCC机制">
+<meta property="og:url" content="https://spike1337.github.io/2023/02/06/mvcc-source-code/index.html">
+<meta property="og:site_name" content="Spike&#39;s Blog">
+<meta property="og:description" content="事务隔离级别  标准事务隔离级别 PostgreSQL的隔离级别   MVCC架构  元组相关数据结构 MVCC  MVCC与快照   MVCC机制的实现      PostgreSQL采用多版本并发控制（MVCC）来维护数据的一致性。检索数据时，每个事务看到的都只是一段时间之前的数据快照。MVCC并不能解决所有的并发控制情况，需要使用传统数据库的锁机制来保证事务的并发，因此在PostgreSQ">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://spike1337.github.io/uploads/pg_mvcc_base.png">
+<meta property="article:published_time" content="2023-02-06T06:36:45.000Z">
+<meta property="article:modified_time" content="2023-02-28T07:03:51.406Z">
+<meta property="article:author" content="Spike">
+<meta property="article:tag" content="PostgreSQL">
+<meta property="article:tag" content="transaction">
+<meta property="article:tag" content="isolation">
+<meta property="article:tag" content="MVCC">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://spike1337.github.io/uploads/pg_mvcc_base.png">
+  <!-- Canonical links -->
+  <link rel="canonical" href="https://spike1337.github.io/2023/02/06/mvcc-source-code/index.html">
+  
+    <link rel="alternate" href="/atom.xml" title="Spike&#39;s Blog" type="application/atom+xml">
+  
+  
+    <link rel="icon" href="images/avatar.jpg" type="image/x-icon">
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+  
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body class="main-center" itemscope itemtype="http://schema.org/WebPage">
+  <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+  <div class="slimContent">
+    <div class="navbar-header">
+      
+      
+      <div class="profile-block text-center">
+        <a id="avatar" href="https://github.com/Spike1337" target="_blank">
+          <img class="img-circle img-rotate" src="/images/avatar.jpg" width="200" height="200">
+        </a>
+        <h2 id="name" class="hidden-xs hidden-sm">Spike</h2>
+        <h3 id="title" class="hidden-xs hidden-sm hidden-md">Code for fun</h3>
+        <small id="location" class="text-muted hidden-xs hidden-sm"><i class="icon icon-map-marker"></i> Tianjin, China</small>
+      </div>
+      
+      <div class="search" id="search-form-wrap">
+
+    <form class="search-form sidebar-form">
+        <div class="input-group">
+            <input type="text" class="search-form-input form-control" placeholder="Search" />
+            <span class="input-group-btn">
+                <button type="submit" class="search-form-submit btn btn-flat" onclick="return false;"><i class="icon icon-search"></i></button>
+            </span>
+        </div>
+    </form>
+    <div class="ins-search">
+  <div class="ins-search-mask"></div>
+  <div class="ins-search-container">
+    <div class="ins-input-wrapper">
+      <input type="text" class="ins-search-input" placeholder="Type something..." x-webkit-speech />
+      <button type="button" class="close ins-close ins-selectable" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="ins-section-wrapper">
+      <div class="ins-section-container"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      <button class="navbar-toggle collapsed" type="button" data-toggle="collapse" data-target="#main-navbar" aria-controls="main-navbar" aria-expanded="false">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <nav id="main-navbar" class="collapse navbar-collapse" itemscope itemtype="http://schema.org/SiteNavigationElement" role="navigation">
+      <ul class="nav navbar-nav main-nav menu-highlight">
+        
+        
+        <li class="menu-item menu-item-home">
+          <a href="/.">
+            
+            <i class="icon icon-home-fill"></i>
+            
+            <span class="menu-title">Home</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives">
+            
+            <i class="icon icon-archives-fill"></i>
+            
+            <span class="menu-title">Archives</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories">
+            
+            <i class="icon icon-folder"></i>
+            
+            <span class="menu-title">Categories</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags">
+            
+            <i class="icon icon-tags"></i>
+            
+            <span class="menu-title">Tags</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-repository">
+          <a href="/repository">
+            
+            <i class="icon icon-project"></i>
+            
+            <span class="menu-title">Repository</span>
+          </a>
+        </li>
+        
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about">
+            
+            <i class="icon icon-cup-fill"></i>
+            
+            <span class="menu-title">About</span>
+          </a>
+        </li>
+        
+      </ul>
+      
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/Spike1337" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Weibo" data-toggle=tooltip data-placement=top><i class="icon icon-weibo"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Twitter" data-toggle=tooltip data-placement=top><i class="icon icon-twitter"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Behance" data-toggle=tooltip data-placement=top><i class="icon icon-behance"></i></a></li>
+        
+        <li><a href="/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+    </nav>
+  </div>
+</header>
+
+  
+    <aside class="sidebar" itemscope itemtype="http://schema.org/WPSideBar">
+  <div class="slimContent">
+    
+      <div class="widget">
+    <h3 class="widget-title">Board</h3>
+    <div class="widget-body">
+        <div id="board">
+            <div class="content">
+                <p>Konaqua ~</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">Categories</h3>
+    <div class="widget-body">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Linux/">Linux</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/PostgreSQL/">PostgreSQL</a><span class="category-list-count">2</span></li></ul>
+    </div>
+  </div>
+
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">Tags</h3>
+    <div class="widget-body">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/" rel="tag">Linux</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MVCC/" rel="tag">MVCC</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/WAL/" rel="tag">WAL</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/isolation/" rel="tag">isolation</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/replication/" rel="tag">replication</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tools/" rel="tag">tools</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/transaction/" rel="tag">transaction</a><span class="tag-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">Tag Cloud</h3>
+    <div class="widget-body tagcloud">
+      <a href="/tags/Linux/" style="font-size: 13px;">Linux</a> <a href="/tags/MVCC/" style="font-size: 13px;">MVCC</a> <a href="/tags/PostgreSQL/" style="font-size: 14px;">PostgreSQL</a> <a href="/tags/WAL/" style="font-size: 13px;">WAL</a> <a href="/tags/isolation/" style="font-size: 13px;">isolation</a> <a href="/tags/replication/" style="font-size: 13px;">replication</a> <a href="/tags/tools/" style="font-size: 13px;">tools</a> <a href="/tags/transaction/" style="font-size: 13px;">transaction</a>
+    </div>
+  </div>
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">Archive</h3>
+    <div class="widget-body">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a><span class="archive-list-count">3</span></li></ul>
+    </div>
+  </div>
+
+
+    
+      
+  <div class="widget">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget-body">
+      <ul class="recent-post-list list-unstyled no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/Linux/">Linux</a>
+              </p>
+              <p class="item-title">
+                <a href="/2023/02/07/devtodo-manual/" class="title">Linux · 工具 · devtodo · 简洁的终端todo工具</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2023-02-07T02:23:30.000Z" itemprop="datePublished">2023-02-07</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/PostgreSQL/">PostgreSQL</a>
+              </p>
+              <p class="item-title">
+                <a href="/2023/02/06/mvcc-source-code/" class="title">PostgreSQL · 源码解析 · MVCC机制</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2023-02-06T06:36:45.000Z" itemprop="datePublished">2023-02-06</time>
+              </p>
+            </div>
+          </li>
+          
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/PostgreSQL/">PostgreSQL</a>
+              </p>
+              <p class="item-title">
+                <a href="/2023/02/03/pg-wal-source-code/" class="title">PostgreSQL · 源码解析 · WAL日志</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2023-02-03T05:44:58.000Z" itemprop="datePublished">2023-02-03</time>
+              </p>
+            </div>
+          </li>
+          
+      </ul>
+    </div>
+  </div>
+  
+
+    
+  </div>
+</aside>
+
+  
+  
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-mvcc-source-code" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
+        
+  
+    <h1 class="article-title" itemprop="name">
+      PostgreSQL · 源码解析 · MVCC机制
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/2023/02/06/mvcc-source-code/" class="article-date">
+	  <time datetime="2023-02-06T06:36:45.000Z" itemprop="datePublished">2023-02-06</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/categories/PostgreSQL/">PostgreSQL</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/tags/MVCC/" rel="tag">MVCC</a>, <a class="article-tag-link-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a>, <a class="article-tag-link-link" href="/tags/isolation/" rel="tag">isolation</a>, <a class="article-tag-link-link" href="/tags/transaction/" rel="tag">transaction</a>
+  </span>
+
+
+        
+	<span class="article-read hidden-xs">
+	    <i class="icon icon-eye-fill" aria-hidden="true"></i>
+	    <span id="busuanzi_container_page_pv">
+			<span id="busuanzi_value_page_pv">0</span>
+		</span>
+	</span>
+
+
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/2023/02/06/mvcc-source-code/#comments" class="article-comment-link">Comments</a></span>
+        
+	
+		<span class="post-wordcount hidden-xs" itemprop="wordCount">Word Count: 2.8k(words)</span>
+	
+	
+		<span class="post-readcount hidden-xs" itemprop="timeRequired">Read Count: 11(minutes)</span>
+	
+
+      </div>
+    </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <ul>
+<li><a href="#%E4%BA%8B%E5%8A%A1%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB">事务隔离级别</a>
+<ul>
+<li><a href="#%E6%A0%87%E5%87%86%E4%BA%8B%E5%8A%A1%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB">标准事务隔离级别</a></li>
+<li><a href="#postgresql%E7%9A%84%E9%9A%94%E7%A6%BB%E7%BA%A7%E5%88%AB">PostgreSQL的隔离级别</a></li>
+</ul>
+</li>
+<li><a href="#mvcc%E6%9E%B6%E6%9E%84">MVCC架构</a>
+<ul>
+<li><a href="#%E5%85%83%E7%BB%84%E7%9B%B8%E5%85%B3%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84">元组相关数据结构</a></li>
+<li><a href="#mvcc">MVCC</a>
+<ul>
+<li><a href="#mvcc%E4%B8%8E%E5%BF%AB%E7%85%A7">MVCC与快照</a></li>
+</ul>
+</li>
+<li><a href="#mvcc%E6%9C%BA%E5%88%B6%E7%9A%84%E5%AE%9E%E7%8E%B0">MVCC机制的实现</a></li>
+</ul>
+</li>
+</ul>
+<hr>
+<br>
+<p>PostgreSQL采用多版本并发控制（MVCC）来维护数据的一致性。检索数据时，每个事务看到的都只是一段时间之前的数据快照。MVCC并不能解决所有的并发控制情况，需要使用传统数据库的锁机制来保证事务的并发，因此在PostgreSQL里也有表和行级别的锁定机制。此外PostgreSQL还提供了会话锁机制，可以利用它一次对某个对象加锁保证对于多个事务都有效。</p>
+<h2 id="事务隔离级别">事务隔离级别</h2>
+<h3 id="标准事务隔离级别">标准事务隔离级别</h3>
+<p>三个必须在并行的事务之间避免的现象：</p>
+<ul>
+<li>脏读：一个事务读取了另一个未提交的并行事务写的数据</li>
+<li>不可重复读：一个事务对一个数据前后读取两次，发现该数据已经被另一个已提交的数据修改过</li>
+<li>幻读：事务A读取某一范围内的数据行时，事务B在该范围内插入新行，当事务A再次读取该范围内的数据时无法查询到新增的数据</li>
+</ul>
+<p>四个事务隔离级别：</p>
+<table>
+<thead>
+<tr>
+<th>隔离级别</th>
+<th>脏读</th>
+<th>不可重复读</th>
+<th>幻读</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>读未提交</td>
+<td>⭕</td>
+<td>⭕</td>
+<td>⭕</td>
+</tr>
+<tr>
+<td>读已提交</td>
+<td>❌</td>
+<td>⭕</td>
+<td>⭕</td>
+</tr>
+<tr>
+<td>可重复读</td>
+<td>❌</td>
+<td>❌</td>
+<td>⭕</td>
+</tr>
+<tr>
+<td>可串行化</td>
+<td>❌</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+</tbody>
+</table>
+<h3 id="PostgreSQL的隔离级别">PostgreSQL的隔离级别</h3>
+<p>在PostgreSQL中，可以请求以上四种事务隔离级别的任意一种。但是在内部，只有两种独立的隔离级别：读已提交和可串行化。即选择读未提交的隔离级别，实际用的是读已提交。下面介绍PostgreSQL定义的两种隔离级别：</p>
+<ul>
+<li><strong>读已提交</strong>：缺省隔离级别。当一个事务运行在这个隔离级别时，一个<code>SELECT</code>查询只能看到查询开始之前提交的数据。如果两个事务在对同一元组进行更新，如果第一个事务回滚，则忽略其作用，第二个事务继续更新该元组；第二个事务则等待第一个事务提交或回滚。如果第一个事务提交，系统重新计算查询条件，如果符合则继续更新操作。</li>
+<li><strong>可串行化</strong>：提供了最严格的事务隔离。模拟串行的事务执行。如果两个事务在对同一元组进行更新，第二个事务则等待第一个事务提交或回滚。如果第一个事务回滚，则忽略其作用，第二个事务继续更新该元组；如果第一个事务提交，那么可串行化事务回滚，从头开始进行整个事务。</li>
+</ul>
+<p>在PostgreSQL系统中，事务的隔离级别所涉及的最小对象是元组，所以对元组的操作需要实施访问控制。这个操作是通过锁操作以及MVCC相关的操作来实现的</p>
+<h2 id="MVCC架构">MVCC架构</h2>
+<p>在内部，PostgreSQL利用多版本并发控制（MVCC，MultiVersion Concurrency Control）来维护数据的一致性。即当检索数据时，每个事务看到的只是一段时间之前的事务快照，而不是数据的当前状态。这样对每个数据库会话进行事务隔离，就可以避免一个事务看到其他并发时的更新导致不一致的数据</p>
+<h3 id="元组相关数据结构">元组相关数据结构</h3>
+<p>在PostgreSQL系统中，更新数据并不是用新值覆盖旧值，而是在表中开辟一片空间来存放新的元组，新值与旧值同时存在于数据库中，只是通过设置一些参数让系统可以识别他们</p>
+<p>元组的事务和命令控制信息存储在<code>HeapTupleFields</code>中</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">HeapTupleFields</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    TransactionId t_xmin;		<span class="comment">// 创建此tuple的XID</span></span><br><span class="line">    TransactionId t_xmax;		<span class="comment">// 删除此tuple的XID</span></span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">union</span></span></span><br><span class="line"><span class="class">    &#123;</span></span><br><span class="line">        CommandId	t_cid;		<span class="comment">// 创建或删除tuple的CID，也可能二者都保存</span></span><br><span class="line">        TransactionId t_xvac;	<span class="comment">// 清理操作的事务ID</span></span><br><span class="line">    &#125;t_field3;</span><br><span class="line">&#125; HeapTupleFields;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>如果一个事务确实创建并删除了同一个元组，则使用一个Combo Command ID 来保存Cmin和Cmax</li>
+</ul>
+<p>元组的相关控制信息存储在元组的头部<code>HeapTupleHeaderData</code>中</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">HeapTupleHeaderData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">	<span class="class"><span class="keyword">union</span></span></span><br><span class="line"><span class="class">	&#123;</span></span><br><span class="line">		HeapTupleFields t_heap;</span><br><span class="line">		DatumTupleFields t_datum;</span><br><span class="line">	&#125;			t_choice;</span><br><span class="line"></span><br><span class="line">	ItemPointerData t_ctid;		<span class="comment">// 本元组或更新元组的当前TID</span></span><br><span class="line">	uint16		t_infomask2;	<span class="comment">// 属性、标记位数量标记位</span></span><br><span class="line">	uint16		t_infomask;		<span class="comment">// 元组事务信息标记位</span></span><br><span class="line">	uint8		t_hoff;			<span class="comment">// 头部长度</span></span><br><span class="line">	bits8		t_bits[FLEXIBLE_ARRAY_MEMBER];	<span class="comment">// 标记作用的填充位</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>其中，<code>t_ctid</code>当元组被保存在磁盘中时被初始化为自己的实际存储位置。如果元组被更新，<code>t_cid</code>指向更新后的新元组。如果要找到某个元组的最新版本，只需遍历由<code>t_ctid</code>构成的链表即可</li>
+<li><code>t_infomask</code>字段表示当前元组的事务信息</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_HASNULL			0x0001	<span class="comment">// 空字段标记位</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_HASVARWIDTH		0x0002	<span class="comment">// 变长字段标记位</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_HASEXTERNAL		0x0004	<span class="comment">// 外部存储字段标记位</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_HASOID_OLD			0x0008	<span class="comment">// 有OID字段</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_XMAX_KEYSHR_LOCK	0x0010	<span class="comment">// xmax是共享锁</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_COMBOCID			0x0020	<span class="comment">// t_cid是combo cid</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_XMAX_EXCL_LOCK		0x0040	<span class="comment">// xmax是排他锁</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_XMAX_LOCK_ONLY		0x0080	<span class="comment">// xmax如果有效则只是一个锁</span></span></span><br><span class="line"></span><br><span class="line"> <span class="comment">// xmax is a shared locker</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_XMAX_SHR_LOCK	(HEAP_XMAX_EXCL_LOCK | HEAP_XMAX_KEYSHR_LOCK)</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_LOCK_MASK	(HEAP_XMAX_SHR_LOCK | HEAP_XMAX_EXCL_LOCK | \</span></span><br><span class="line"><span class="meta">						 HEAP_XMAX_KEYSHR_LOCK)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_XMIN_COMMITTED		0x0100	<span class="comment">// t_xmin已提交</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_XMIN_INVALID		0x0200	<span class="comment">// t_xmin无效/中断</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_XMIN_FROZEN		(HEAP_XMIN_COMMITTED|HEAP_XMIN_INVALID)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_XMAX_COMMITTED		0x0400	<span class="comment">// t_xmax已提交</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_XMAX_INVALID		0x0800	<span class="comment">// t_xmax无效/中断</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_XMAX_IS_MULTI		0x1000	<span class="comment">// t_xmax是组合事务</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_UPDATED			0x2000	<span class="comment">// 更新后的新元组</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_MOVED_OFF			0x4000	<span class="comment">// 被之前版本的VACUUM FULL移到其他地方，用以兼容二进制升级</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_MOVED_IN			0x8000	<span class="comment">// 被之前版本的VACUUM FULL从其他地方移入，用以兼容二进制升级</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_MOVED (HEAP_MOVED_OFF | HEAP_MOVED_IN)</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> HEAP_XACT_MASK			0xFFF0	<span class="comment">// 可见性相关标记</span></span></span><br></pre></td></tr></table></figure>
+<h3 id="MVCC">MVCC</h3>
+<p>MVCC基本原理如图。有两个并发事务T1，T2，T1将元组C更新为C‘，但并没有提交。此时T2要对该元组进行查询，会通过C和C’的头部信息的Xmin和Xmax以及t_infomask来判断哪个为对当前事务的有效版本</p>
+<p><img src="/uploads/pg_mvcc_base.png" alt="MVCC基本原理"></p>
+<h4 id="MVCC与快照">MVCC与快照</h4>
+<p>讨论MVCC的判断逻辑之前，我们需要先了解快照（snapshot）</p>
+<p>快照（snapshot）记录了数据库当前某个时刻的活跃事务列表，通过快照确定某个元组的版本对于当前快照是否可见。快照定义在<code>SnapshotData</code>中</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">SnapshotData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    SnapshotType snapshot_type; <span class="comment">// 快照类型</span></span><br><span class="line"></span><br><span class="line">    TransactionId xmin;         <span class="comment">// 所有XID &lt; xmin对当前快照可见</span></span><br><span class="line">    TransactionId xmax;         <span class="comment">// 所有XID &gt;= xmax对当前快照可见</span></span><br><span class="line"></span><br><span class="line">    TransactionId *xip;         <span class="comment">// 当前活跃事务的链表</span></span><br><span class="line">    uint32      xcnt;           <span class="comment">// 当前活跃事务链表长度</span></span><br><span class="line"></span><br><span class="line">    TransactionId *subxip;      <span class="comment">// 当前活跃子事务链表</span></span><br><span class="line">    int32       subxcnt;        <span class="comment">// 当前活跃子事务链表的长度</span></span><br><span class="line">    <span class="type">bool</span>        suboverflowed;  <span class="comment">// 活跃子事务数组是否移除</span></span><br><span class="line"></span><br><span class="line">    <span class="type">bool</span>        takenDuringRecovery;    <span class="comment">// 是否是在Recovery中的快照</span></span><br><span class="line">    <span class="type">bool</span>        copied;         <span class="comment">// 静态快照则为false</span></span><br><span class="line"></span><br><span class="line">    CommandId   curcid;         <span class="comment">// 所有CID &lt; curcid是可见的</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// HeapTupleSatisfiesDirty中的额外返回值，并没有在MVCC快照中使用</span></span><br><span class="line">    uint32      speculativeToken;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 由快照管理器使用的信息</span></span><br><span class="line">    uint32      active_count;   <span class="comment">// 在活跃快照链表里的引用计数</span></span><br><span class="line">    uint32      regd_count;     <span class="comment">// 在已注册的快照链表里的引用计数</span></span><br><span class="line">    pairingheap_node ph_node;   <span class="comment">// 已注册的快照链表</span></span><br><span class="line"></span><br><span class="line">    TimestampTz whenTaken;      <span class="comment">// 记录快照的时间戳</span></span><br><span class="line">    XLogRecPtr  lsn;            <span class="comment">// 记录快照时在WAL中的位置</span></span><br><span class="line">&#125; SnapshotData;</span><br></pre></td></tr></table></figure>
+<p>在PostgreSQL中有默认的7种形式快照（15.1），分别是：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">enum</span> <span class="title">SnapshotType</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="comment">// 元组对于给定的MVCC快照有效</span></span><br><span class="line">    SNAPSHOT_MVCC = <span class="number">0</span>,</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 元组对于自身有效</span></span><br><span class="line">    SNAPSHOT_SELF,</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 任何元组都是可见的</span></span><br><span class="line">    SNAPSHOT_ANY,</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 元组作为TOAST行 有效</span></span><br><span class="line">    SNAPSHOT_TOAST,</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 下面三个不太好解释，直接贴原文</span></span><br><span class="line">    <span class="comment">/*-------------------------------------------------------------------------</span></span><br><span class="line"><span class="comment">     * A tuple is visible iff the tuple is valid including effects of open</span></span><br><span class="line"><span class="comment">     * transactions.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * Here, we consider the effects of:</span></span><br><span class="line"><span class="comment">     * - all committed and in-progress transactions (as of the current instant)</span></span><br><span class="line"><span class="comment">     * - previous commands of this transaction</span></span><br><span class="line"><span class="comment">     * - changes made by the current command</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * This is essentially like SNAPSHOT_SELF as far as effects of the current</span></span><br><span class="line"><span class="comment">     * transaction and committed/aborted xacts are concerned.  However, it</span></span><br><span class="line"><span class="comment">     * also includes the effects of other xacts still in progress.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * A special hack is that when a snapshot of this type is used to</span></span><br><span class="line"><span class="comment">     * determine tuple visibility, the passed-in snapshot struct is used as an</span></span><br><span class="line"><span class="comment">     * output argument to return the xids of concurrent xacts that affected</span></span><br><span class="line"><span class="comment">     * the tuple.  snapshot-&gt;xmin is set to the tuple&#x27;s xmin if that is</span></span><br><span class="line"><span class="comment">     * another transaction that&#x27;s still in progress; or to</span></span><br><span class="line"><span class="comment">     * InvalidTransactionId if the tuple&#x27;s xmin is committed good, committed</span></span><br><span class="line"><span class="comment">     * dead, or my own xact.  Similarly for snapshot-&gt;xmax and the tuple&#x27;s</span></span><br><span class="line"><span class="comment">     * xmax.  If the tuple was inserted speculatively, meaning that the</span></span><br><span class="line"><span class="comment">     * inserter might still back down on the insertion without aborting the</span></span><br><span class="line"><span class="comment">     * whole transaction, the associated token is also returned in</span></span><br><span class="line"><span class="comment">     * snapshot-&gt;speculativeToken.  See also InitDirtySnapshot().</span></span><br><span class="line"><span class="comment">     * -------------------------------------------------------------------------</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    SNAPSHOT_DIRTY,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * A tuple is visible iff it follows the rules of SNAPSHOT_MVCC, but</span></span><br><span class="line"><span class="comment">     * supports being called in timetravel context (for decoding catalog</span></span><br><span class="line"><span class="comment">     * contents in the context of logical decoding).</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="comment">// 元组对MVCC快照有效，且支持逻辑复制</span></span><br><span class="line">    SNAPSHOT_HISTORIC_MVCC,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">     * A tuple is visible iff the tuple might be visible to some transaction;</span></span><br><span class="line"><span class="comment">     * false if it&#x27;s surely dead to everyone, i.e., vacuumable.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * For visibility checks snapshot-&gt;min must have been set up with the xmin</span></span><br><span class="line"><span class="comment">     * horizon to use.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="comment">// 元组对某些事务可见，如果对所有事务都是dead tuple，也就是vacuumable，则返回false</span></span><br><span class="line">    SNAPSHOT_NON_VACUUMABLE</span><br><span class="line">&#125; SnapshotType;</span><br></pre></td></tr></table></figure>
+<h3 id="MVCC机制的实现">MVCC机制的实现</h3>
+<p>以函数<code>HeapTupleSatisfiesSelf</code>为例，下面介绍MVCC机制的具体实现。如果返回值为True，则该元组是可见的。判断时会考虑三个方面的因素：所有已提交的事务，当前事务前的所有命令以及当前命令前的所有操作。执行过程如下：</p>
+<ul>
+<li>检查Xmin是否为已提交，如果元组的Xmin还未提交</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Xmin未提交</span></span><br><span class="line"><span class="keyword">if</span> (!HeapTupleHeaderXminCommitted(tuple))</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// Xmin无效，元组不可见</span></span><br><span class="line">    <span class="keyword">if</span> (HeapTupleHeaderXminInvalid(tuple))</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 兼容二进制升级</span></span><br><span class="line">    <span class="keyword">if</span> (tuple-&gt;t_infomask &amp; HEAP_MOVED_OFF)</span><br><span class="line">    &#123;</span><br><span class="line">		...</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 兼容二进制升级</span></span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (tuple-&gt;t_infomask &amp; HEAP_MOVED_IN)</span><br><span class="line">    &#123;</span><br><span class="line">		...</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// Xmin为当前事务</span></span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (TransactionIdIsCurrentTransactionId(HeapTupleHeaderGetRawXmin(tuple)))</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="comment">// Xmax无效，则XID无效，可见</span></span><br><span class="line">        <span class="keyword">if</span> (tuple-&gt;t_infomask &amp; HEAP_XMAX_INVALID)</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Xmax被锁定，即元组被锁定，可见</span></span><br><span class="line">        <span class="keyword">if</span> (HEAP_XMAX_IS_LOCKED_ONLY(tuple-&gt;t_infomask))</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Xmax是组合事务</span></span><br><span class="line">        <span class="keyword">if</span> (tuple-&gt;t_infomask &amp; HEAP_XMAX_IS_MULTI)</span><br><span class="line">        &#123;</span><br><span class="line">            xmax = HeapTupleGetUpdateXid(tuple);</span><br><span class="line">            <span class="comment">// 更新子事务必须已回滚，因为前提是Xmin未提交</span></span><br><span class="line">            <span class="keyword">if</span> (!TransactionIdIsCurrentTransactionId(xmax))</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">            <span class="keyword">else</span></span><br><span class="line">                <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Xmax为当前事务</span></span><br><span class="line">        <span class="keyword">if</span> (!TransactionIdIsCurrentTransactionId(HeapTupleHeaderGetRawXmax(tuple)))</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="comment">// 删除子事务必须已终止</span></span><br><span class="line">            SetHintBits(tuple, buffer, HEAP_XMAX_INVALID,</span><br><span class="line">                        InvalidTransactionId);</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// Xmin正在某个后端进程中运行</span></span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (TransactionIdIsInProgress(HeapTupleHeaderGetRawXmin(tuple)))</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    <span class="comment">// Xmin已经被提交</span></span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (TransactionIdDidCommit(HeapTupleHeaderGetRawXmin(tuple)))</span><br><span class="line">        SetHintBits(tuple, buffer, HEAP_XMIN_COMMITTED,</span><br><span class="line">                    HeapTupleHeaderGetRawXmin(tuple));</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="comment">// 否则一定是中止或崩溃</span></span><br><span class="line">        SetHintBits(tuple, buffer, HEAP_XMIN_INVALID,</span><br><span class="line">                    InvalidTransactionId);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>Xmin已提交。如果Xmax无效或中断，元组可见</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (tuple-&gt;t_infomask &amp; HEAP_XMAX_INVALID)</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>Xmin已提交，Xmax已提交</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (tuple-&gt;t_infomask &amp; HEAP_XMAX_COMMITTED)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// 如果Xmax被锁定，可见</span></span><br><span class="line">    <span class="keyword">if</span> (HEAP_XMAX_IS_LOCKED_ONLY(tuple-&gt;t_infomask))</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>Xmin已提交，Xmax为组合事务</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (tuple-&gt;t_infomask &amp; HEAP_XMAX_IS_MULTI)</span><br><span class="line">&#123;</span><br><span class="line">    TransactionId xmax;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Xmax被锁定，可见</span></span><br><span class="line">    <span class="keyword">if</span> (HEAP_XMAX_IS_LOCKED_ONLY(tuple-&gt;t_infomask))</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">    xmax = HeapTupleGetUpdateXid(tuple);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Xmax是当前事务</span></span><br><span class="line">    <span class="keyword">if</span> (TransactionIdIsCurrentTransactionId(xmax))</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    <span class="comment">// Xmax正在被某个后端进程执行</span></span><br><span class="line">    <span class="keyword">if</span> (TransactionIdIsInProgress(xmax))</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    <span class="comment">// Xmax已经被提交</span></span><br><span class="line">    <span class="keyword">if</span> (TransactionIdDidCommit(xmax))</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    <span class="comment">// 否则事务被中断或崩溃</span></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>Xmin已提交，Xmax不是组合事务</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Xmax是当前事务</span></span><br><span class="line"><span class="keyword">if</span> (TransactionIdIsCurrentTransactionId(HeapTupleHeaderGetRawXmax(tuple)))</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">if</span> (HEAP_XMAX_IS_LOCKED_ONLY(tuple-&gt;t_infomask))</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// Xmax正在被某个后端进程执行</span></span><br><span class="line"><span class="keyword">if</span> (TransactionIdIsInProgress(HeapTupleHeaderGetRawXmax(tuple)))</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line"><span class="comment">// Xmax已经被提交</span></span><br><span class="line"><span class="keyword">if</span> (!TransactionIdDidCommit(HeapTupleHeaderGetRawXmax(tuple)))</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// it must have aborted or crashed</span></span><br><span class="line">    SetHintBits(tuple, buffer, HEAP_XMAX_INVALID,</span><br><span class="line">                InvalidTransactionId);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// Xmax被锁定</span></span><br><span class="line"><span class="keyword">if</span> (HEAP_XMAX_IS_LOCKED_ONLY(tuple-&gt;t_infomask))</span><br><span class="line">&#123;</span><br><span class="line">    SetHintBits(tuple, buffer, HEAP_XMAX_INVALID,</span><br><span class="line">                InvalidTransactionId);</span><br><span class="line">    <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>SNAPSHOT_SELF</code>所对应的MVCC判断机制如上，其他snapshot类型对应的判断逻辑类似，就不再详细介绍了</p>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="https://spike1337.github.io/2023/02/06/mvcc-source-code/" title="PostgreSQL · 源码解析 · MVCC机制" target="_blank" rel="external">https://spike1337.github.io/2023/02/06/mvcc-source-code/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/Spike1337" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/Spike1337" target="_blank"><span class="text-dark">Spike</span><small class="ml-1x">Code for fun</small></a></h3>
+        <div>A student</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
+  </article>
+  
+    
+  <section id="comments">
+  	
+      <div id="vcomments"></div>
+    
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/2023/02/07/devtodo-manual/" title="Linux · 工具 · devtodo · 简洁的终端todo工具"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;Newer</span></a>
+    </li>
+    
+    
+    <li class="next">
+      <a href="/2023/02/03/pg-wal-source-code/" title="PostgreSQL · 源码解析 · WAL日志"><span>Older&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
+</main>
+
+  <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
+    
+	
+    <ul class="social-links">
+    	
+        <li><a href="https://github.com/Spike1337" target="_blank" title="Github" data-toggle=tooltip data-placement=top><i class="icon icon-github"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Weibo" data-toggle=tooltip data-placement=top><i class="icon icon-weibo"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Twitter" data-toggle=tooltip data-placement=top><i class="icon icon-twitter"></i></a></li>
+        
+        <li><a href="/null" target="_blank" title="Behance" data-toggle=tooltip data-placement=top><i class="icon icon-behance"></i></a></li>
+        
+        <li><a href="/atom.xml" target="_blank" title="Rss" data-toggle=tooltip data-placement=top><i class="icon icon-rss"></i></a></li>
+        
+    </ul>
+
+        <div class="copyright">
+            
+                &copy; 2023
+                    Spike
+                        
+                            <div class="publishby">
+                                <!-- Theme by <a href="https://github.com/cofess" target="_blank">
+                                        cofess </a>
+                                    base on <a href="https://github.com/cofess/hexo-theme-pure"
+                                            target="_blank">pure</a>. -->
+                                Theme by <a href="https://github.com/cofess" target="_blank">
+                                        cofess </a>
+                                    base on <a href="https://github.com/cofess/hexo-theme-pure"
+                                            target="_blank">pure</a>.
+                            </div>
+        </div>
+</footer>
+  <script src="//cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js"></script>
+<script>
+window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
+</script>
+
+<script src="/js/plugin.min.js"></script>
+
+
+<script src="/js/application.js"></script>
+
+
+    <script>
+(function (window) {
+    var INSIGHT_CONFIG = {
+        TRANSLATION: {
+            POSTS: 'Posts',
+            PAGES: 'Pages',
+            CATEGORIES: 'Categories',
+            TAGS: 'Tags',
+            UNTITLED: '(Untitled)',
+        },
+        ROOT_URL: '/',
+        CONTENT_URL: '/content.json',
+    };
+    window.INSIGHT_CONFIG = INSIGHT_CONFIG;
+})(window);
+</script>
+
+<script src="/js/insight.js"></script>
+
+
+
+
+
+
+   
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+   
+    
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/valine"></script>
+  <script type="text/javascript">
+  var GUEST = ['nick', 'mail', 'link'];
+  var meta = 'nick,mail';
+  meta = meta.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#vcomments',
+    verify: false,
+    notify: false,
+    appId: '',
+    appKey: '',
+    placeholder: 'Just go go',
+    avatar: 'retro',
+    meta: meta,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+  </script>
+
+     
+
+
+
+
+
+
+
+<script src="/live2dw/lib/L2Dwidget.min.js?094cbace49a39548bed64abff5988b05"></script><script>L2Dwidget.init({"pluginRootPath":"live2dw/","pluginJsPath":"lib/","pluginModelPath":"assets/","tagMode":false,"log":false,"model":{"jsonPath":"/live2dw/assets/koharu.model.json"},"display":{"position":"right","width":150,"height":300},"mobile":{"show":true},"react":{"opacity":0.7}});</script></body>
+</html>
