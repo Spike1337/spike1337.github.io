@@ -17,16 +17,26 @@
   <meta http-equiv="window-target" content="_top" />
   
   
-  <title>Tag: PostgreSQL | Spike&#39;s Blog</title>
-  <meta property="og:type" content="website">
-<meta property="og:title" content="Spike&#39;s Blog">
-<meta property="og:url" content="https://spike1337.github.io/tags/PostgreSQL/index.html">
+  <title>PostgreSQL源码 · 元组管理（一）· 页的组织结构 | Spike&#39;s Blog</title>
+  <meta name="description" content="Page的结构  PageHeader 页面的行指针结构      开个新坑，简单写一写PostgreSQL中的元组管理。 对于整个存储架构，各种PostgreSQL的相关书籍已经介绍的很详细了，这里也就不再重复造轮子了。下面我们主要基于面向对象（大雾），来看看元组这个对象，有哪些成员变量，又有哪些成员函数  元组(Tuple)是PostgreSQL中数据的基本存储单元，Page又是存储元组的基">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PostgreSQL源码 · 元组管理（一）· 页的组织结构">
+<meta property="og:url" content="https://spike1337.github.io/2023/07/10/tuple_manager_1/index.html">
 <meta property="og:site_name" content="Spike&#39;s Blog">
+<meta property="og:description" content="Page的结构  PageHeader 页面的行指针结构      开个新坑，简单写一写PostgreSQL中的元组管理。 对于整个存储架构，各种PostgreSQL的相关书籍已经介绍的很详细了，这里也就不再重复造轮子了。下面我们主要基于面向对象（大雾），来看看元组这个对象，有哪些成员变量，又有哪些成员函数  元组(Tuple)是PostgreSQL中数据的基本存储单元，Page又是存储元组的基">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://spike1337.github.io/uploads/page_struct.png">
+<meta property="article:published_time" content="2023-07-10T09:47:33.000Z">
+<meta property="article:modified_time" content="2023-07-17T09:49:44.353Z">
 <meta property="article:author" content="Spike">
+<meta property="article:tag" content="PostgreSQL">
+<meta property="article:tag" content="storage">
+<meta property="article:tag" content="tuple">
+<meta property="article:tag" content="page">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://spike1337.github.io/uploads/page_struct.png">
   <!-- Canonical links -->
-  <link rel="canonical" href="https://spike1337.github.io/tags/PostgreSQL/index.html">
+  <link rel="canonical" href="https://spike1337.github.io/2023/07/10/tuple_manager_1/index.html">
   
     <link rel="alternate" href="/atom.xml" title="Spike&#39;s Blog" type="application/atom+xml">
   
@@ -320,164 +330,194 @@
 </aside>
 
   
-  <main class="main" role="main">
-  <article class="content article article-tags post-type-list" itemscope="">
-    <header class="article-header">
-      <h1 itemprop="name" class="hidden-xs">Tag: PostgreSQL</h1>
-      <p class="text-muted hidden-xs">Total 4 articles</p>
-      <nav role="navigation" id="nav-main" class="okayNav">
-        <ul>
-          <li><a href="/tags">All</a></li>
-          
-          <li><a href="/tags/Linux/">Linux</a></li>
-          
-          <li><a href="/tags/tools/">tools</a></li>
-          
-          <li><a href="/tags/PostgreSQL/">PostgreSQL</a></li>
-          
-          <li><a href="/tags/transaction/">transaction</a></li>
-          
-          <li><a href="/tags/isolation/">isolation</a></li>
-          
-          <li><a href="/tags/MVCC/">MVCC</a></li>
-          
-          <li><a href="/tags/replication/">replication</a></li>
-          
-          <li><a href="/tags/WAL/">WAL</a></li>
-          
-          <li><a href="/tags/storage/">storage</a></li>
-          
-          <li><a href="/tags/tuple/">tuple</a></li>
-          
-          <li><a href="/tags/page/">page</a></li>
-          
-        </ul>
-      </nav>
-    </header>
-    <!-- /header -->
-    <div class="article-body">
-      <div class="row">
+  
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-tuple_manager_1" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
         
-<div class="col-md-6">
-    
-<article class="panel panel-default hover-shadow hover-grow" itemscope itemtype="http://schema.org/BlogPosting">
-  <div class="panel-body">
-     <div class="article-meta">
-       <time datetime="2023-07-11T10:35:06.000Z" itemprop="datePublished">2023-07-11</time>
-     </div>
-     <h3 class="article-title" itemprop="name">
-       <a class="article-link" href="/2023/07/11/tuple_manager_2/">PostgreSQL源码 · 元组管理（二）· 元组的组织结构</a>
-     </h3>
-   </div>
-   
-   <div class="panel-footer">
-     
-      <a href="/tags/PostgreSQL/" class="label label-default mb">PostgreSQL</a>
-     
-      <a href="/tags/storage/" class="label label-default mb">storage</a>
-     
-      <a href="/tags/tuple/" class="label label-default mb">tuple</a>
-     
-     
-   </div>
-   
-</article>
+  
+    <h1 class="article-title" itemprop="name">
+      PostgreSQL源码 · 元组管理（一）· 页的组织结构
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/2023/07/10/tuple_manager_1/" class="article-date">
+	  <time datetime="2023-07-10T09:47:33.000Z" itemprop="datePublished">2023-07-10</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/categories/PostgreSQL/">PostgreSQL</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a>, <a class="article-tag-link-link" href="/tags/page/" rel="tag">page</a>, <a class="article-tag-link-link" href="/tags/storage/" rel="tag">storage</a>, <a class="article-tag-link-link" href="/tags/tuple/" rel="tag">tuple</a>
+  </span>
 
 
-</div>
-
-<div class="col-md-6">
-    
-<article class="panel panel-default hover-shadow hover-grow" itemscope itemtype="http://schema.org/BlogPosting">
-  <div class="panel-body">
-     <div class="article-meta">
-       <time datetime="2023-07-10T09:47:33.000Z" itemprop="datePublished">2023-07-10</time>
-     </div>
-     <h3 class="article-title" itemprop="name">
-       <a class="article-link" href="/2023/07/10/tuple_manager_1/">PostgreSQL源码 · 元组管理（一）· 页的组织结构</a>
-     </h3>
-   </div>
-   
-   <div class="panel-footer">
-     
-      <a href="/tags/PostgreSQL/" class="label label-default mb">PostgreSQL</a>
-     
-      <a href="/tags/storage/" class="label label-default mb">storage</a>
-     
-      <a href="/tags/tuple/" class="label label-default mb">tuple</a>
-     
-     
-      <span class="label label-default mb">···</span>
-     
-   </div>
-   
-</article>
+        
+	<span class="article-read hidden-xs">
+	    <i class="icon icon-eye-fill" aria-hidden="true"></i>
+	    <span id="busuanzi_container_page_pv">
+			<span id="busuanzi_value_page_pv">0</span>
+		</span>
+	</span>
 
 
-</div>
-
-<div class="col-md-6">
-    
-<article class="panel panel-default hover-shadow hover-grow" itemscope itemtype="http://schema.org/BlogPosting">
-  <div class="panel-body">
-     <div class="article-meta">
-       <time datetime="2023-02-06T06:36:45.000Z" itemprop="datePublished">2023-02-06</time>
-     </div>
-     <h3 class="article-title" itemprop="name">
-       <a class="article-link" href="/2023/02/06/mvcc-source-code/">PostgreSQL · 源码解析 · MVCC机制</a>
-     </h3>
-   </div>
-   
-   <div class="panel-footer">
-     
-      <a href="/tags/PostgreSQL/" class="label label-default mb">PostgreSQL</a>
-     
-      <a href="/tags/transaction/" class="label label-default mb">transaction</a>
-     
-      <a href="/tags/isolation/" class="label label-default mb">isolation</a>
-     
-     
-      <span class="label label-default mb">···</span>
-     
-   </div>
-   
-</article>
-
-
-</div>
-
-<div class="col-md-6">
-    
-<article class="panel panel-default hover-shadow hover-grow" itemscope itemtype="http://schema.org/BlogPosting">
-  <div class="panel-body">
-     <div class="article-meta">
-       <time datetime="2023-02-03T05:44:58.000Z" itemprop="datePublished">2023-02-03</time>
-     </div>
-     <h3 class="article-title" itemprop="name">
-       <a class="article-link" href="/2023/02/03/pg-wal-source-code/">PostgreSQL · 源码解析 · WAL日志</a>
-     </h3>
-   </div>
-   
-   <div class="panel-footer">
-     
-      <a href="/tags/PostgreSQL/" class="label label-default mb">PostgreSQL</a>
-     
-      <a href="/tags/replication/" class="label label-default mb">replication</a>
-     
-      <a href="/tags/WAL/" class="label label-default mb">WAL</a>
-     
-     
-   </div>
-   
-</article>
-
-
-</div>
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/2023/07/10/tuple_manager_1/#comments" class="article-comment-link">Comments</a></span>
+        
+	
+		<span class="post-wordcount hidden-xs" itemprop="wordCount">Word Count: 724(words)</span>
+	
+	
+		<span class="post-readcount hidden-xs" itemprop="timeRequired">Read Count: 2(minutes)</span>
+	
 
       </div>
     </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <ul>
+<li><a href="#page%E7%9A%84%E7%BB%93%E6%9E%84">Page的结构</a>
+<ul>
+<li><a href="#pageheader">PageHeader</a></li>
+<li><a href="#%E9%A1%B5%E9%9D%A2%E7%9A%84%E8%A1%8C%E6%8C%87%E9%92%88%E7%BB%93%E6%9E%84">页面的行指针结构</a></li>
+</ul>
+</li>
+</ul>
+<hr>
+<br>
+<p>开个新坑，简单写一写PostgreSQL中的元组管理。</p>
+<p>对于整个存储架构，各种PostgreSQL的相关书籍已经介绍的很详细了，这里也就不再重复造轮子了。下面我们主要基于面向对象（大雾），来看看元组这个对象，有哪些<code>成员变量</code>，又有哪些<code>成员函数</code></p>
+<hr>
+<p>元组(Tuple)是PostgreSQL中数据的基本存储单元，Page又是存储元组的基本载体，所以这第一篇我们先来看一下Page的结构</p>
+<h2 id="Page的结构">Page的结构</h2>
+<p>Page的结构可以简单看下图所示</p>
+<p><img src="/uploads/page_struct.png" alt="img"></p>
+<p>page的默认大小为8k。每个页面的起始位置有大小为24个字节的PageHeader，记录该page相关的元数据信息。PageHeader中的pd_lower和pd_upper分别指向了页面空闲空间的首尾。</p>
+<p>这里每一个tuple存储一条数据记录，从数据页底部开始向前依次存储。这些元组在页面中的位置存储在行指针line pointer中，每个行指针指向一个tuple。行指针从前向后依次存储，形成一个简单的数据。行指针中还存放了元组的状态和大小信息，扮演元组在页面中的索引的角色。行指针和tuple中间的部分为页面的空闲空间。</p>
+<p>我们首先来看看PageHeader存储了什么元数据</p>
+<h3 id="PageHeader">PageHeader</h3>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">PageHeaderData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    PageXLogRecPtr  pd_lsn;</span><br><span class="line">    uint16          pd_checksum;</span><br><span class="line">    uint16          pd_flags;</span><br><span class="line">    LocationIndex   pd_lower;</span><br><span class="line">    LocationIndex   pd_upper;</span><br><span class="line">    LocationIndex   pd_special;</span><br><span class="line">    uint16          pd_pagesize_version;</span><br><span class="line">    TransactionId   pd_prune_xid;</span><br><span class="line">    ItemIdData      pd_linp[FLEXIBLE_ARRAY_MEMBER];</span><br><span class="line">&#125; PageHeaderData;</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>pd_lsn</code>，记录了该页面最后一次更改的WAL log的lsn</li>
+<li><code>pg_checksum</code>，页面校验和</li>
+<li><code>pd_flags</code>，页面的标记为，包括以下标记
+<ul>
+<li><code>PD_HAS_FREE_LINES</code>，页面中是否有unused line pointer. 这个unused的概念我们之后在看到line pointer时会介绍</li>
+<li><code>PD_PAGE_FULL</code>，页面是否有足够的空闲空间给新的tuple</li>
+<li><code>PD_ALL_VISIBLE</code>，页面中的所有元组是否对<strong>当前和之后</strong>的所有事务可见</li>
+</ul>
+</li>
+<li><code>pd_lower</code>，指向空闲空间的起始位置</li>
+<li><code>pd_upper</code>，指向空闲空间的结束位置</li>
+<li><code>pd_special</code>，指向特殊空间的起始位置</li>
+<li><code>pd_pagesize_version</code>，页面布局的版本号</li>
+<li><code>pd_prune_xid</code>，用于页面元组清理时的标记位，记录了最旧的可清理的事务号。没有则为0</li>
+<li><code>pg_linp</code>，页面行指针数组</li>
+</ul>
+<h3 id="页面的行指针结构">页面的行指针结构</h3>
+<p>行指针是一个32位大小的索引结构，如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">ItemIdData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="type">unsigned</span>    lp_off:<span class="number">15</span>,</span><br><span class="line">                lp_flags:<span class="number">2</span>,</span><br><span class="line">                lp_len:<span class="number">15</span>;</span><br><span class="line">&#125; ItemIdData;</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>lp_off</code>，记录了tuple在页面中的offset</li>
+<li><code>lp_len</code>，记录了tuple的size</li>
+<li><code>lp_flags</code>，是一个tuple状态的简单标记，方便在扫描元组时做一个初步筛选，有以下几个标记
+<ul>
+<li><code>LP_UNUSED</code>，元组未使用，可以立刻被重用</li>
+<li><code>LP_NORMAL</code>，元组状态正常</li>
+<li><code>LP_REDIRECT</code>，元组被重定向了。用于PG的HOT链的头部和中间元组</li>
+<li><code>LP_DEAD</code>，元组已死，但空间可能还没有回收</li>
+</ul>
+</li>
+</ul>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="https://spike1337.github.io/2023/07/10/tuple_manager_1/" title="PostgreSQL源码 · 元组管理（一）· 页的组织结构" target="_blank" rel="external">https://spike1337.github.io/2023/07/10/tuple_manager_1/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/Spike1337" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/Spike1337" target="_blank"><span class="text-dark">Spike</span><small class="ml-1x">Code for fun</small></a></h3>
+        <div>A student</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
   </article>
-   
+  
+    
+  <section id="comments">
+  	
+      <div id="vcomments"></div>
+    
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/2023/07/11/tuple_manager_2/" title="PostgreSQL源码 · 元组管理（二）· 元组的组织结构"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;Newer</span></a>
+    </li>
+    
+    
+    <li class="next">
+      <a href="/2023/02/07/devtodo-manual/" title="Linux · 工具 · devtodo · 简洁的终端todo工具"><span>Older&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
 </main>
 
   <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
@@ -548,6 +588,39 @@ window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
 
 
 
+
+   
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+   
+    
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/valine"></script>
+  <script type="text/javascript">
+  var GUEST = ['nick', 'mail', 'link'];
+  var meta = 'nick,mail';
+  meta = meta.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#vcomments',
+    verify: false,
+    notify: false,
+    appId: '',
+    appKey: '',
+    placeholder: 'Just go go',
+    avatar: 'retro',
+    meta: meta,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+  </script>
+
+     
 
 
 

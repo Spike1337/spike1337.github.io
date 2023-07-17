@@ -1,3 +1,5 @@
+https://spike1337.github.io/2023/07/11/tuple_manager_2/
+https://spike1337.github.io/2023/07/10/tuple_manager_1/
 https://spike1337.github.io/2023/02/07/devtodo-manual/
 https://spike1337.github.io/2023/02/06/mvcc-source-code/
 https://spike1337.github.io/2023/02/03/pg-wal-source-code/
@@ -17,5 +19,8 @@ https://spike1337.github.io/tags/isolation/
 https://spike1337.github.io/tags/MVCC/
 https://spike1337.github.io/tags/replication/
 https://spike1337.github.io/tags/WAL/
+https://spike1337.github.io/tags/storage/
+https://spike1337.github.io/tags/tuple/
+https://spike1337.github.io/tags/page/
 https://spike1337.github.io/categories/Linux/
 https://spike1337.github.io/categories/PostgreSQL/

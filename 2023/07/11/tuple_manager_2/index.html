@@ -17,16 +17,23 @@
   <meta http-equiv="window-target" content="_top" />
   
   
-  <title>Tag: PostgreSQL | Spike&#39;s Blog</title>
-  <meta property="og:type" content="website">
-<meta property="og:title" content="Spike&#39;s Blog">
-<meta property="og:url" content="https://spike1337.github.io/tags/PostgreSQL/index.html">
+  <title>PostgreSQL源码 · 元组管理（二）· 元组的组织结构 | Spike&#39;s Blog</title>
+  <meta name="description" content="Tuple的结构  HeapTupleHeader  HeapTupleFields DatumTupleFields        上次我们简单看了下PostgreSQL中页面的组织结构，介绍了PageHeader和行指针的结构。这次我们来看看元组的结构，也就是tuple的成员变量 Tuple的结构 元组的结构如下 1234567typedef struct HeapTupleData&amp;#12">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PostgreSQL源码 · 元组管理（二）· 元组的组织结构">
+<meta property="og:url" content="https://spike1337.github.io/2023/07/11/tuple_manager_2/index.html">
 <meta property="og:site_name" content="Spike&#39;s Blog">
+<meta property="og:description" content="Tuple的结构  HeapTupleHeader  HeapTupleFields DatumTupleFields        上次我们简单看了下PostgreSQL中页面的组织结构，介绍了PageHeader和行指针的结构。这次我们来看看元组的结构，也就是tuple的成员变量 Tuple的结构 元组的结构如下 1234567typedef struct HeapTupleData&amp;#12">
 <meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2023-07-11T10:35:06.000Z">
+<meta property="article:modified_time" content="2023-07-17T09:50:14.365Z">
 <meta property="article:author" content="Spike">
+<meta property="article:tag" content="PostgreSQL">
+<meta property="article:tag" content="storage">
+<meta property="article:tag" content="tuple">
 <meta name="twitter:card" content="summary">
   <!-- Canonical links -->
-  <link rel="canonical" href="https://spike1337.github.io/tags/PostgreSQL/index.html">
+  <link rel="canonical" href="https://spike1337.github.io/2023/07/11/tuple_manager_2/index.html">
   
     <link rel="alternate" href="/atom.xml" title="Spike&#39;s Blog" type="application/atom+xml">
   
@@ -320,164 +327,190 @@
 </aside>
 
   
-  <main class="main" role="main">
-  <article class="content article article-tags post-type-list" itemscope="">
-    <header class="article-header">
-      <h1 itemprop="name" class="hidden-xs">Tag: PostgreSQL</h1>
-      <p class="text-muted hidden-xs">Total 4 articles</p>
-      <nav role="navigation" id="nav-main" class="okayNav">
-        <ul>
-          <li><a href="/tags">All</a></li>
-          
-          <li><a href="/tags/Linux/">Linux</a></li>
-          
-          <li><a href="/tags/tools/">tools</a></li>
-          
-          <li><a href="/tags/PostgreSQL/">PostgreSQL</a></li>
-          
-          <li><a href="/tags/transaction/">transaction</a></li>
-          
-          <li><a href="/tags/isolation/">isolation</a></li>
-          
-          <li><a href="/tags/MVCC/">MVCC</a></li>
-          
-          <li><a href="/tags/replication/">replication</a></li>
-          
-          <li><a href="/tags/WAL/">WAL</a></li>
-          
-          <li><a href="/tags/storage/">storage</a></li>
-          
-          <li><a href="/tags/tuple/">tuple</a></li>
-          
-          <li><a href="/tags/page/">page</a></li>
-          
-        </ul>
-      </nav>
-    </header>
-    <!-- /header -->
-    <div class="article-body">
-      <div class="row">
+  
+<main class="main" role="main">
+  <div class="content">
+  <article id="post-tuple_manager_2" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+    
+    <div class="article-header">
+      
         
-<div class="col-md-6">
-    
-<article class="panel panel-default hover-shadow hover-grow" itemscope itemtype="http://schema.org/BlogPosting">
-  <div class="panel-body">
-     <div class="article-meta">
-       <time datetime="2023-07-11T10:35:06.000Z" itemprop="datePublished">2023-07-11</time>
-     </div>
-     <h3 class="article-title" itemprop="name">
-       <a class="article-link" href="/2023/07/11/tuple_manager_2/">PostgreSQL源码 · 元组管理（二）· 元组的组织结构</a>
-     </h3>
-   </div>
-   
-   <div class="panel-footer">
-     
-      <a href="/tags/PostgreSQL/" class="label label-default mb">PostgreSQL</a>
-     
-      <a href="/tags/storage/" class="label label-default mb">storage</a>
-     
-      <a href="/tags/tuple/" class="label label-default mb">tuple</a>
-     
-     
-   </div>
-   
-</article>
+  
+    <h1 class="article-title" itemprop="name">
+      PostgreSQL源码 · 元组管理（二）· 元组的组织结构
+    </h1>
+  
+
+      
+      <div class="article-meta">
+        <span class="article-date">
+    <i class="icon icon-calendar-check"></i>
+	<a href="/2023/07/11/tuple_manager_2/" class="article-date">
+	  <time datetime="2023-07-11T10:35:06.000Z" itemprop="datePublished">2023-07-11</time>
+	</a>
+</span>
+        
+  <span class="article-category">
+    <i class="icon icon-folder"></i>
+    <a class="article-category-link" href="/categories/PostgreSQL/">PostgreSQL</a>
+  </span>
+
+        
+  <span class="article-tag">
+    <i class="icon icon-tags"></i>
+	<a class="article-tag-link-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a>, <a class="article-tag-link-link" href="/tags/storage/" rel="tag">storage</a>, <a class="article-tag-link-link" href="/tags/tuple/" rel="tag">tuple</a>
+  </span>
 
 
-</div>
-
-<div class="col-md-6">
-    
-<article class="panel panel-default hover-shadow hover-grow" itemscope itemtype="http://schema.org/BlogPosting">
-  <div class="panel-body">
-     <div class="article-meta">
-       <time datetime="2023-07-10T09:47:33.000Z" itemprop="datePublished">2023-07-10</time>
-     </div>
-     <h3 class="article-title" itemprop="name">
-       <a class="article-link" href="/2023/07/10/tuple_manager_1/">PostgreSQL源码 · 元组管理（一）· 页的组织结构</a>
-     </h3>
-   </div>
-   
-   <div class="panel-footer">
-     
-      <a href="/tags/PostgreSQL/" class="label label-default mb">PostgreSQL</a>
-     
-      <a href="/tags/storage/" class="label label-default mb">storage</a>
-     
-      <a href="/tags/tuple/" class="label label-default mb">tuple</a>
-     
-     
-      <span class="label label-default mb">···</span>
-     
-   </div>
-   
-</article>
+        
+	<span class="article-read hidden-xs">
+	    <i class="icon icon-eye-fill" aria-hidden="true"></i>
+	    <span id="busuanzi_container_page_pv">
+			<span id="busuanzi_value_page_pv">0</span>
+		</span>
+	</span>
 
 
-</div>
-
-<div class="col-md-6">
-    
-<article class="panel panel-default hover-shadow hover-grow" itemscope itemtype="http://schema.org/BlogPosting">
-  <div class="panel-body">
-     <div class="article-meta">
-       <time datetime="2023-02-06T06:36:45.000Z" itemprop="datePublished">2023-02-06</time>
-     </div>
-     <h3 class="article-title" itemprop="name">
-       <a class="article-link" href="/2023/02/06/mvcc-source-code/">PostgreSQL · 源码解析 · MVCC机制</a>
-     </h3>
-   </div>
-   
-   <div class="panel-footer">
-     
-      <a href="/tags/PostgreSQL/" class="label label-default mb">PostgreSQL</a>
-     
-      <a href="/tags/transaction/" class="label label-default mb">transaction</a>
-     
-      <a href="/tags/isolation/" class="label label-default mb">isolation</a>
-     
-     
-      <span class="label label-default mb">···</span>
-     
-   </div>
-   
-</article>
-
-
-</div>
-
-<div class="col-md-6">
-    
-<article class="panel panel-default hover-shadow hover-grow" itemscope itemtype="http://schema.org/BlogPosting">
-  <div class="panel-body">
-     <div class="article-meta">
-       <time datetime="2023-02-03T05:44:58.000Z" itemprop="datePublished">2023-02-03</time>
-     </div>
-     <h3 class="article-title" itemprop="name">
-       <a class="article-link" href="/2023/02/03/pg-wal-source-code/">PostgreSQL · 源码解析 · WAL日志</a>
-     </h3>
-   </div>
-   
-   <div class="panel-footer">
-     
-      <a href="/tags/PostgreSQL/" class="label label-default mb">PostgreSQL</a>
-     
-      <a href="/tags/replication/" class="label label-default mb">replication</a>
-     
-      <a href="/tags/WAL/" class="label label-default mb">WAL</a>
-     
-     
-   </div>
-   
-</article>
-
-
-</div>
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/2023/07/11/tuple_manager_2/#comments" class="article-comment-link">Comments</a></span>
+        
+	
+		<span class="post-wordcount hidden-xs" itemprop="wordCount">Word Count: 428(words)</span>
+	
+	
+		<span class="post-readcount hidden-xs" itemprop="timeRequired">Read Count: 1(minutes)</span>
+	
 
       </div>
     </div>
+    <div class="article-entry marked-body" itemprop="articleBody">
+      
+        <ul>
+<li><a href="#tuple%E7%9A%84%E7%BB%93%E6%9E%84">Tuple的结构</a>
+<ul>
+<li><a href="#heaptupleheader">HeapTupleHeader</a>
+<ul>
+<li><a href="#heaptuplefields">HeapTupleFields</a></li>
+<li><a href="#datumtuplefields">DatumTupleFields</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<hr>
+<br>
+<p>上次我们简单看了下PostgreSQL中页面的组织结构，介绍了PageHeader和行指针的结构。这次我们来看看元组的结构，也就是tuple的<code>成员变量</code></p>
+<h2 id="Tuple的结构">Tuple的结构</h2>
+<p>元组的结构如下</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">HeapTupleData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    uint32          t_len;</span><br><span class="line">    ItemPointerData t_self;</span><br><span class="line">    Oid             t_tableOid;</span><br><span class="line">    HeapTupleHeader t_data;</span><br><span class="line">&#125; HeapTupleData;</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>t_len</code>，元组<code>t_data</code>字段的长度</li>
+<li><code>t_self</code>，记录元组自己的位置信息，包括所在的block信息，和元组在页面中的offset</li>
+<li><code>t_tableOid</code>，元组所在表的oid</li>
+<li><code>t_data</code>，元组的元数据信息和具体存储的数据</li>
+</ul>
+<h3 id="HeapTupleHeader">HeapTupleHeader</h3>
+<p>存储元组的元数据信息，结构如下</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">HeapTupleHeaderData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">union</span></span></span><br><span class="line"><span class="class">    &#123;</span></span><br><span class="line">        HeapTupleFields     t_heap;</span><br><span class="line">        DatumTupleFields    t_datum;</span><br><span class="line">    &#125; t_choice;</span><br><span class="line"></span><br><span class="line">    ItemPointerData t_ctid;</span><br><span class="line">    uint16      t_infomask2;</span><br><span class="line">    uint16      t_infomask;</span><br><span class="line">    uint8       t_hoff;</span><br><span class="line">    bits8       t_bits[FLEXIBLE_ARRAY_MEMBER];</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>t_heap</code>，元组事务相关的域</li>
+<li><code>t_datum</code>，元组数据相关的域</li>
+<li><code>t_cid</code>，HOT元组会指向最新的元组位置，否则指向自己的位置</li>
+<li><code>t_infomask2</code>，元组的属性数，和一些标记位</li>
+<li><code>t_infomask</code>，元组的标记位。这些标记我们就不在这里介绍了</li>
+<li><code>t_hoff</code>，header的整体大小</li>
+<li><code>t_bits</code>，NULL值列的数组</li>
+</ul>
+<p><code>t_bits</code>数组之后存放的就是元组的数据</p>
+<h4 id="HeapTupleFields">HeapTupleFields</h4>
+<p>元组事务相关的域</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">HeapTupleFields</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    TransactionId t_xmin;</span><br><span class="line">    TransactionId t_xmax;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">union</span></span></span><br><span class="line"><span class="class">    &#123;</span></span><br><span class="line">        CommandId       t_cid;</span><br><span class="line">        TransactionId   t_xvac;</span><br><span class="line">    &#125; t_field3;</span><br><span class="line">&#125; HeapTupleFields;</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>t_xmin</code>，元组插入的事务号</li>
+<li><code>t_xmax</code>，元组删除的事务号</li>
+<li><code>t_cid</code>，命令id，表示当前事务中执行的修改该元组的命令的id</li>
+<li><code>t_xvac</code>，vacuum full操作的事务号</li>
+</ul>
+<h4 id="DatumTupleFields">DatumTupleFields</h4>
+<p>元组数据相关的域</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">DatumTupleFields</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    int32		datum_len_;		<span class="comment">/* varlena header (do not touch directly!) */</span></span><br><span class="line">    int32		datum_typmod;	<span class="comment">/* -1, or identifier of a record type */</span></span><br><span class="line">    Oid			datum_typeid;	<span class="comment">/* composite type OID, or RECORDOID */</span></span><br><span class="line"></span><br><span class="line">&#125; DatumTupleFields;</span><br></pre></td></tr></table></figure>
+<ul>
+<li><code>datum_len_</code>，变长数据类型的长度</li>
+<li><code>datum_typmod</code>，数据类型</li>
+<li><code>datum_typeid</code>，复合类型的类型oid</li>
+</ul>
+
+      
+    </div>
+    <div class="article-footer">
+      <blockquote class="mt-2x">
+  <ul class="post-copyright list-unstyled">
+    
+    <li class="post-copyright-link hidden-xs">
+      <strong>本文链接：</strong>
+      <a href="https://spike1337.github.io/2023/07/11/tuple_manager_2/" title="PostgreSQL源码 · 元组管理（二）· 元组的组织结构" target="_blank" rel="external">https://spike1337.github.io/2023/07/11/tuple_manager_2/</a>
+    </li>
+    
+    <li class="post-copyright-license">
+      <strong>版权声明： </strong> 本博客所有文章除特别声明外，均采用 <a href="http://creativecommons.org/licenses/by/4.0/deed.zh" target="_blank" rel="external">CC BY 4.0 CN协议</a> 许可协议。转载请注明出处！
+    </li>
+  </ul>
+</blockquote>
+
+
+<div class="panel panel-default panel-badger">
+  <div class="panel-body">
+    <figure class="media">
+      <div class="media-left">
+        <a href="https://github.com/Spike1337" target="_blank" class="img-burn thumb-sm visible-lg">
+          <img src="/images/avatar.jpg" class="img-rounded w-full" alt="">
+        </a>
+      </div>
+      <div class="media-body">
+        <h3 class="media-heading"><a href="https://github.com/Spike1337" target="_blank"><span class="text-dark">Spike</span><small class="ml-1x">Code for fun</small></a></h3>
+        <div>A student</div>
+      </div>
+    </figure>
+  </div>
+</div>
+
+
+    </div>
   </article>
-   
+  
+    
+  <section id="comments">
+  	
+      <div id="vcomments"></div>
+    
+  </section>
+
+
+  
+</div>
+
+  <nav class="bar bar-footer clearfix" data-stick-bottom>
+  <div class="bar-inner">
+  
+  <ul class="pager pull-left">
+    
+    
+    <li class="next">
+      <a href="/2023/07/10/tuple_manager_1/" title="PostgreSQL源码 · 元组管理（一）· 页的组织结构"><span>Older&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+    </li>
+    
+    
+  </ul>
+  
+  
+  
+  <div class="bar-right">
+    
+  </div>
+  </div>
+</nav>
+  
+
+
 </main>
 
   <footer class="footer" itemscope itemtype="http://schema.org/WPFooter">
@@ -548,6 +581,39 @@ window.jQuery || document.write('<script src="js/jquery.min.js"><\/script>')
 
 
 
+
+   
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+   
+    
+  <script src="//cdn1.lncld.net/static/js/3.0.4/av-min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/valine"></script>
+  <script type="text/javascript">
+  var GUEST = ['nick', 'mail', 'link'];
+  var meta = 'nick,mail';
+  meta = meta.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#vcomments',
+    verify: false,
+    notify: false,
+    appId: '',
+    appKey: '',
+    placeholder: 'Just go go',
+    avatar: 'retro',
+    meta: meta,
+    pageSize: '10' || 10,
+    visitor: false
+  });
+  </script>
+
+     
 
 
 

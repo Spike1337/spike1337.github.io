@@ -6,7 +6,7 @@
   <link href="https://spike1337.github.io/atom.xml" rel="self"/>
   
   <link href="https://spike1337.github.io/"/>
-  <updated>2023-02-28T07:04:08.221Z</updated>
+  <updated>2023-07-17T09:50:14.365Z</updated>
   <id>https://spike1337.github.io/</id>
   
   <author>
@@ -15,6 +15,73 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>PostgreSQL源码 · 元组管理（二）· 元组的组织结构</title>
+    <link href="https://spike1337.github.io/2023/07/11/tuple_manager_2/"/>
+    <id>https://spike1337.github.io/2023/07/11/tuple_manager_2/</id>
+    <published>2023-07-11T10:35:06.000Z</published>
+    <updated>2023-07-17T09:50:14.365Z</updated>
+    
+    <content type="html"><![CDATA[<ul><li><a href="#tuple%E7%9A%84%E7%BB%93%E6%9E%84">Tuple的结构</a><ul><li><a href="#heaptupleheader">HeapTupleHeader</a><ul><li><a href="#heaptuplefields">HeapTupleFields</a></li><li><a href="#datumtuplefields">DatumTupleFields</a></li></ul></li></ul></li></ul><hr><br><p>上次我们简单看了下PostgreSQL中页面的组织结构，介绍了PageHeader和行指针的结构。这次我们来看看元组的结构，也就是tuple的<code>成员变量</code></p><h2 id="Tuple的结构">Tuple的结构</h2><p>元组的结构如下</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">HeapTupleData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    uint32          t_len;</span><br><span class="line">    ItemPointerData t_self;</span><br><span class="line">    Oid             t_tableOid;</span><br><span class="line">    HeapTupleHeader t_data;</span><br><span class="line">&#125; HeapTupleData;</span><br></pre></td></tr></table></figure><ul><li><code>t_len</code>，元组<code>t_data</code>字段的长度</li><li><code>t_self</code>，记录元组自己的位置信息，包括所在的block信息，和元组在页面中的offset</li><li><code>t_tableOid</code>，元组所在表的oid</li><li><code>t_data</code>，元组的元数据信息和具体存储的数据</li></ul><h3 id="HeapTupleHeader">HeapTupleHeader</h3><p>存储元组的元数据信息，结构如下</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">HeapTupleHeaderData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">union</span></span></span><br><span class="line"><span class="class">    &#123;</span></span><br><span class="line">        HeapTupleFields     t_heap;</span><br><span class="line">        DatumTupleFields    t_datum;</span><br><span class="line">    &#125; t_choice;</span><br><span class="line"></span><br><span class="line">    ItemPointerData t_ctid;</span><br><span class="line">    uint16      t_infomask2;</span><br><span class="line">    uint16      t_infomask;</span><br><span class="line">    uint8       t_hoff;</span><br><span class="line">    bits8       t_bits[FLEXIBLE_ARRAY_MEMBER];</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure><ul><li><code>t_heap</code>，元组事务相关的域</li><li><code>t_datum</code>，元组数据相关的域</li><li><code>t_cid</code>，HOT元组会指向最新的元组位置，否则指向自己的位置</li><li><code>t_infomask2</code>，元组的属性数，和一些标记位</li><li><code>t_infomask</code>，元组的标记位。这些标记我们就不在这里介绍了</li><li><code>t_hoff</code>，header的整体大小</li><li><code>t_bits</code>，NULL值列的数组</li></ul><p><code>t_bits</code>数组之后存放的就是元组的数据</p><h4 id="HeapTupleFields">HeapTupleFields</h4><p>元组事务相关的域</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">HeapTupleFields</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    TransactionId t_xmin;</span><br><span class="line">    TransactionId t_xmax;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">union</span></span></span><br><span class="line"><span class="class">    &#123;</span></span><br><span class="line">        CommandId       t_cid;</span><br><span class="line">        TransactionId   t_xvac;</span><br><span class="line">    &#125; t_field3;</span><br><span class="line">&#125; HeapTupleFields;</span><br></pre></td></tr></table></figure><ul><li><code>t_xmin</code>，元组插入的事务号</li><li><code>t_xmax</code>，元组删除的事务号</li><li><code>t_cid</code>，命令id，表示当前事务中执行的修改该元组的命令的id</li><li><code>t_xvac</code>，vacuum full操作的事务号</li></ul><h4 id="DatumTupleFields">DatumTupleFields</h4><p>元组数据相关的域</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">DatumTupleFields</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    int32datum_len_;<span class="comment">/* varlena header (do not touch directly!) */</span></span><br><span class="line">    int32datum_typmod;<span class="comment">/* -1, or identifier of a record type */</span></span><br><span class="line">    Oiddatum_typeid;<span class="comment">/* composite type OID, or RECORDOID */</span></span><br><span class="line"></span><br><span class="line">&#125; DatumTupleFields;</span><br></pre></td></tr></table></figure><ul><li><code>datum_len_</code>，变长数据类型的长度</li><li><code>datum_typmod</code>，数据类型</li><li><code>datum_typeid</code>，复合类型的类型oid</li></ul>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;#tuple%E7%9A%84%E7%BB%93%E6%9E%84&quot;&gt;Tuple的结构&lt;/a&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;#heaptupleheader&quot;&gt;HeapTupleHeader&lt;/a&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;</summary>
+      
+    
+    
+    
+    <category term="PostgreSQL" scheme="https://spike1337.github.io/categories/PostgreSQL/"/>
+    
+    
+    <category term="PostgreSQL" scheme="https://spike1337.github.io/tags/PostgreSQL/"/>
+    
+    <category term="storage" scheme="https://spike1337.github.io/tags/storage/"/>
+    
+    <category term="tuple" scheme="https://spike1337.github.io/tags/tuple/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>PostgreSQL源码 · 元组管理（一）· 页的组织结构</title>
+    <link href="https://spike1337.github.io/2023/07/10/tuple_manager_1/"/>
+    <id>https://spike1337.github.io/2023/07/10/tuple_manager_1/</id>
+    <published>2023-07-10T09:47:33.000Z</published>
+    <updated>2023-07-17T09:49:44.353Z</updated>
+    
+    <content type="html"><![CDATA[<ul><li><a href="#page%E7%9A%84%E7%BB%93%E6%9E%84">Page的结构</a><ul><li><a href="#pageheader">PageHeader</a></li><li><a href="#%E9%A1%B5%E9%9D%A2%E7%9A%84%E8%A1%8C%E6%8C%87%E9%92%88%E7%BB%93%E6%9E%84">页面的行指针结构</a></li></ul></li></ul><hr><br><p>开个新坑，简单写一写PostgreSQL中的元组管理。</p><p>对于整个存储架构，各种PostgreSQL的相关书籍已经介绍的很详细了，这里也就不再重复造轮子了。下面我们主要基于面向对象（大雾），来看看元组这个对象，有哪些<code>成员变量</code>，又有哪些<code>成员函数</code></p><hr><p>元组(Tuple)是PostgreSQL中数据的基本存储单元，Page又是存储元组的基本载体，所以这第一篇我们先来看一下Page的结构</p><h2 id="Page的结构">Page的结构</h2><p>Page的结构可以简单看下图所示</p><p><img src="/uploads/page_struct.png" alt="img"></p><p>page的默认大小为8k。每个页面的起始位置有大小为24个字节的PageHeader，记录该page相关的元数据信息。PageHeader中的pd_lower和pd_upper分别指向了页面空闲空间的首尾。</p><p>这里每一个tuple存储一条数据记录，从数据页底部开始向前依次存储。这些元组在页面中的位置存储在行指针line pointer中，每个行指针指向一个tuple。行指针从前向后依次存储，形成一个简单的数据。行指针中还存放了元组的状态和大小信息，扮演元组在页面中的索引的角色。行指针和tuple中间的部分为页面的空闲空间。</p><p>我们首先来看看PageHeader存储了什么元数据</p><h3 id="PageHeader">PageHeader</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">PageHeaderData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    PageXLogRecPtr  pd_lsn;</span><br><span class="line">    uint16          pd_checksum;</span><br><span class="line">    uint16          pd_flags;</span><br><span class="line">    LocationIndex   pd_lower;</span><br><span class="line">    LocationIndex   pd_upper;</span><br><span class="line">    LocationIndex   pd_special;</span><br><span class="line">    uint16          pd_pagesize_version;</span><br><span class="line">    TransactionId   pd_prune_xid;</span><br><span class="line">    ItemIdData      pd_linp[FLEXIBLE_ARRAY_MEMBER];</span><br><span class="line">&#125; PageHeaderData;</span><br></pre></td></tr></table></figure><ul><li><code>pd_lsn</code>，记录了该页面最后一次更改的WAL log的lsn</li><li><code>pg_checksum</code>，页面校验和</li><li><code>pd_flags</code>，页面的标记为，包括以下标记<ul><li><code>PD_HAS_FREE_LINES</code>，页面中是否有unused line pointer. 这个unused的概念我们之后在看到line pointer时会介绍</li><li><code>PD_PAGE_FULL</code>，页面是否有足够的空闲空间给新的tuple</li><li><code>PD_ALL_VISIBLE</code>，页面中的所有元组是否对<strong>当前和之后</strong>的所有事务可见</li></ul></li><li><code>pd_lower</code>，指向空闲空间的起始位置</li><li><code>pd_upper</code>，指向空闲空间的结束位置</li><li><code>pd_special</code>，指向特殊空间的起始位置</li><li><code>pd_pagesize_version</code>，页面布局的版本号</li><li><code>pd_prune_xid</code>，用于页面元组清理时的标记位，记录了最旧的可清理的事务号。没有则为0</li><li><code>pg_linp</code>，页面行指针数组</li></ul><h3 id="页面的行指针结构">页面的行指针结构</h3><p>行指针是一个32位大小的索引结构，如下：</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">ItemIdData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="type">unsigned</span>    lp_off:<span class="number">15</span>,</span><br><span class="line">                lp_flags:<span class="number">2</span>,</span><br><span class="line">                lp_len:<span class="number">15</span>;</span><br><span class="line">&#125; ItemIdData;</span><br></pre></td></tr></table></figure><ul><li><code>lp_off</code>，记录了tuple在页面中的offset</li><li><code>lp_len</code>，记录了tuple的size</li><li><code>lp_flags</code>，是一个tuple状态的简单标记，方便在扫描元组时做一个初步筛选，有以下几个标记<ul><li><code>LP_UNUSED</code>，元组未使用，可以立刻被重用</li><li><code>LP_NORMAL</code>，元组状态正常</li><li><code>LP_REDIRECT</code>，元组被重定向了。用于PG的HOT链的头部和中间元组</li><li><code>LP_DEAD</code>，元组已死，但空间可能还没有回收</li></ul></li></ul>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;#page%E7%9A%84%E7%BB%93%E6%9E%84&quot;&gt;Page的结构&lt;/a&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&quot;#pageheader&quot;&gt;PageHeader&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;#%E9%A1%B5%E</summary>
+      
+    
+    
+    
+    <category term="PostgreSQL" scheme="https://spike1337.github.io/categories/PostgreSQL/"/>
+    
+    
+    <category term="PostgreSQL" scheme="https://spike1337.github.io/tags/PostgreSQL/"/>
+    
+    <category term="storage" scheme="https://spike1337.github.io/tags/storage/"/>
+    
+    <category term="tuple" scheme="https://spike1337.github.io/tags/tuple/"/>
+    
+    <category term="page" scheme="https://spike1337.github.io/tags/page/"/>
+    
+  </entry>
   
   <entry>
     <title>Linux · 工具 · devtodo · 简洁的终端todo工具</title>
