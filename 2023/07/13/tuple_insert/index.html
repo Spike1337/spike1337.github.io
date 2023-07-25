@@ -18,19 +18,18 @@
   
   
   <title>PostgreSQL源码 · 元组管理（三）· 元组的插入 | Spike&#39;s Blog</title>
-  <meta name="description" content="元组插入  一、初始化元组的元数据 二、获取可用的page 三、写入数据 四、WAL log和统计信息     元组插入 元组的插入主要由函数heap_insert来完成，主要分为几步：  初始化元组头 HeapTupleHeader 获取可用的page 判断元组可见性和事务冲突 将元组写入可用的page，并标记page dirty 写wal  一、初始化元组的元数据 在heap_prepare">
+  <meta name="description" content="元组插入  一、初始化元组的元数据 二、获取可用的page 三、写入数据 四、WAL log和统计信息      元组插入 元组的插入主要由函数heap_insert来完成，主要分为几步：  初始化元组头 HeapTupleHeader 获取可用的page 判断元组可见性和事务冲突 将元组写入可用的page，并标记page dirty 写wal  一、初始化元组的元数据 在heap_prepar">
 <meta property="og:type" content="article">
 <meta property="og:title" content="PostgreSQL源码 · 元组管理（三）· 元组的插入">
 <meta property="og:url" content="https://spike1337.github.io/2023/07/13/tuple_insert/index.html">
 <meta property="og:site_name" content="Spike&#39;s Blog">
-<meta property="og:description" content="元组插入  一、初始化元组的元数据 二、获取可用的page 三、写入数据 四、WAL log和统计信息     元组插入 元组的插入主要由函数heap_insert来完成，主要分为几步：  初始化元组头 HeapTupleHeader 获取可用的page 判断元组可见性和事务冲突 将元组写入可用的page，并标记page dirty 写wal  一、初始化元组的元数据 在heap_prepare">
+<meta property="og:description" content="元组插入  一、初始化元组的元数据 二、获取可用的page 三、写入数据 四、WAL log和统计信息      元组插入 元组的插入主要由函数heap_insert来完成，主要分为几步：  初始化元组头 HeapTupleHeader 获取可用的page 判断元组可见性和事务冲突 将元组写入可用的page，并标记page dirty 写wal  一、初始化元组的元数据 在heap_prepar">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2023-07-13T11:02:08.000Z">
-<meta property="article:modified_time" content="2023-07-18T08:04:13.228Z">
+<meta property="article:modified_time" content="2023-07-18T09:50:24.183Z">
 <meta property="article:author" content="Spike">
 <meta property="article:tag" content="PostgreSQL">
 <meta property="article:tag" content="storage">
-<meta property="article:tag" content="tuple">
 <meta name="twitter:card" content="summary">
   <!-- Canonical links -->
   <link rel="canonical" href="https://spike1337.github.io/2023/07/13/tuple_insert/index.html">
@@ -201,7 +200,7 @@
   <div class="widget">
     <h3 class="widget-title">Categories</h3>
     <div class="widget-body">
-      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Linux/">Linux</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/PostgreSQL/">PostgreSQL</a><span class="category-list-count">5</span></li></ul>
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Linux/">Linux</a><span class="category-list-count">2</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/PostgreSQL/">PostgreSQL</a><span class="category-list-count">5</span></li></ul>
     </div>
   </div>
 
@@ -211,7 +210,7 @@
   <div class="widget">
     <h3 class="widget-title">Tags</h3>
     <div class="widget-body">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/" rel="tag">Linux</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MVCC/" rel="tag">MVCC</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a><span class="tag-list-count">5</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/WAL/" rel="tag">WAL</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/isolation/" rel="tag">isolation</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/page/" rel="tag">page</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/replication/" rel="tag">replication</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/storage/" rel="tag">storage</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tools/" rel="tag">tools</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/transaction/" rel="tag">transaction</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tuple/" rel="tag">tuple</a><span class="tag-list-count">3</span></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/" rel="tag">Linux</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/MVCC/" rel="tag">MVCC</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a><span class="tag-list-count">5</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/WAL/" rel="tag">WAL</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/libc/" rel="tag">libc</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/replication/" rel="tag">replication</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/storage/" rel="tag">storage</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/tools/" rel="tag">tools</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/transaction/" rel="tag">transaction</a><span class="tag-list-count">1</span></li></ul>
     </div>
   </div>
 
@@ -221,7 +220,7 @@
   <div class="widget">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget-body tagcloud">
-      <a href="/tags/Linux/" style="font-size: 13px;">Linux</a> <a href="/tags/MVCC/" style="font-size: 13px;">MVCC</a> <a href="/tags/PostgreSQL/" style="font-size: 14px;">PostgreSQL</a> <a href="/tags/WAL/" style="font-size: 13px;">WAL</a> <a href="/tags/isolation/" style="font-size: 13px;">isolation</a> <a href="/tags/page/" style="font-size: 13px;">page</a> <a href="/tags/replication/" style="font-size: 13px;">replication</a> <a href="/tags/storage/" style="font-size: 13.5px;">storage</a> <a href="/tags/tools/" style="font-size: 13px;">tools</a> <a href="/tags/transaction/" style="font-size: 13px;">transaction</a> <a href="/tags/tuple/" style="font-size: 13.5px;">tuple</a>
+      <a href="/tags/Linux/" style="font-size: 13.33px;">Linux</a> <a href="/tags/MVCC/" style="font-size: 13px;">MVCC</a> <a href="/tags/PostgreSQL/" style="font-size: 14px;">PostgreSQL</a> <a href="/tags/WAL/" style="font-size: 13px;">WAL</a> <a href="/tags/libc/" style="font-size: 13px;">libc</a> <a href="/tags/replication/" style="font-size: 13px;">replication</a> <a href="/tags/storage/" style="font-size: 13.67px;">storage</a> <a href="/tags/tools/" style="font-size: 13px;">tools</a> <a href="/tags/transaction/" style="font-size: 13px;">transaction</a>
     </div>
   </div>
 
@@ -230,7 +229,7 @@
   <div class="widget">
     <h3 class="widget-title">Archive</h3>
     <div class="widget-body">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/07/">July 2023</a><span class="archive-list-count">3</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a><span class="archive-list-count">3</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/07/">July 2023</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/02/">February 2023</a><span class="archive-list-count">3</span></li></ul>
     </div>
   </div>
 
@@ -242,6 +241,21 @@
     <div class="widget-body">
       <ul class="recent-post-list list-unstyled no-thumbnail">
         
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category">
+                <a class="category-link" href="/categories/Linux/">Linux</a>
+              </p>
+              <p class="item-title">
+                <a href="/2023/07/25/statx/" class="title">C语言 · statx</a>
+              </p>
+              <p class="item-date">
+                <time datetime="2023-07-25T06:41:21.000Z" itemprop="datePublished">2023-07-25</time>
+              </p>
+            </div>
+          </li>
+          
           <li>
             
             <div class="item-inner">
@@ -302,21 +316,6 @@
             </div>
           </li>
           
-          <li>
-            
-            <div class="item-inner">
-              <p class="item-category">
-                <a class="category-link" href="/categories/PostgreSQL/">PostgreSQL</a>
-              </p>
-              <p class="item-title">
-                <a href="/2023/02/06/mvcc-source-code/" class="title">PostgreSQL · 源码解析 · MVCC机制</a>
-              </p>
-              <p class="item-date">
-                <time datetime="2023-02-06T06:36:45.000Z" itemprop="datePublished">2023-02-06</time>
-              </p>
-            </div>
-          </li>
-          
       </ul>
     </div>
   </div>
@@ -358,7 +357,7 @@
         
   <span class="article-tag">
     <i class="icon icon-tags"></i>
-	<a class="article-tag-link-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a>, <a class="article-tag-link-link" href="/tags/storage/" rel="tag">storage</a>, <a class="article-tag-link-link" href="/tags/tuple/" rel="tag">tuple</a>
+	<a class="article-tag-link-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a>, <a class="article-tag-link-link" href="/tags/storage/" rel="tag">storage</a>
   </span>
 
 
@@ -395,6 +394,7 @@
 </li>
 </ul>
 <hr>
+<br>
 <h2 id="元组插入">元组插入</h2>
 <p>元组的插入主要由函数<code>heap_insert</code>来完成，主要分为几步：</p>
 <ol>
@@ -514,6 +514,10 @@
   <div class="bar-inner">
   
   <ul class="pager pull-left">
+    
+    <li class="prev">
+      <a href="/2023/07/25/statx/" title="C语言 · statx"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;Newer</span></a>
+    </li>
     
     
     <li class="next">

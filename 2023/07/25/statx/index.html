@@ -17,22 +17,22 @@
   <meta http-equiv="window-target" content="_top" />
   
   
-  <title>PostgreSQL源码 · 元组管理（二）· 元组的组织结构 | Spike&#39;s Blog</title>
-  <meta name="description" content="Tuple的结构  HeapTupleHeader  HeapTupleFields DatumTupleFields        上次我们简单看了下PostgreSQL中页面的组织结构，介绍了PageHeader和行指针的结构。这次我们来看看元组的结构，也就是tuple的成员变量 Tuple的结构 元组的结构如下 1234567typedef struct HeapTupleData&amp;#12">
+  <title>C语言 · statx | Spike&#39;s Blog</title>
+  <meta name="description" content="最近开发遇到一个问题，想要获取某个文件毫秒级的修改时间。众所周知C标准库中提供的stat函数只能获取到秒级的修改时间st_mtime。相关的信息翻了个遍，最终还是神奇的ChatGPT给我了答案： Linux 4.11及更高版本，支持statx提供了毫秒级的文件修改时间 SYNOPSIS Struct 1234567891011121314151617181920212223242526272829">
 <meta property="og:type" content="article">
-<meta property="og:title" content="PostgreSQL源码 · 元组管理（二）· 元组的组织结构">
-<meta property="og:url" content="https://spike1337.github.io/2023/07/11/tuple_manager_2/index.html">
+<meta property="og:title" content="C语言 · statx">
+<meta property="og:url" content="https://spike1337.github.io/2023/07/25/statx/index.html">
 <meta property="og:site_name" content="Spike&#39;s Blog">
-<meta property="og:description" content="Tuple的结构  HeapTupleHeader  HeapTupleFields DatumTupleFields        上次我们简单看了下PostgreSQL中页面的组织结构，介绍了PageHeader和行指针的结构。这次我们来看看元组的结构，也就是tuple的成员变量 Tuple的结构 元组的结构如下 1234567typedef struct HeapTupleData&amp;#12">
+<meta property="og:description" content="最近开发遇到一个问题，想要获取某个文件毫秒级的修改时间。众所周知C标准库中提供的stat函数只能获取到秒级的修改时间st_mtime。相关的信息翻了个遍，最终还是神奇的ChatGPT给我了答案： Linux 4.11及更高版本，支持statx提供了毫秒级的文件修改时间 SYNOPSIS Struct 1234567891011121314151617181920212223242526272829">
 <meta property="og:locale" content="en_US">
-<meta property="article:published_time" content="2023-07-11T10:35:06.000Z">
-<meta property="article:modified_time" content="2023-07-18T09:50:05.053Z">
+<meta property="article:published_time" content="2023-07-25T06:41:21.000Z">
+<meta property="article:modified_time" content="2023-07-25T07:45:27.475Z">
 <meta property="article:author" content="Spike">
-<meta property="article:tag" content="PostgreSQL">
-<meta property="article:tag" content="storage">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="libc">
 <meta name="twitter:card" content="summary">
   <!-- Canonical links -->
-  <link rel="canonical" href="https://spike1337.github.io/2023/07/11/tuple_manager_2/index.html">
+  <link rel="canonical" href="https://spike1337.github.io/2023/07/25/statx/index.html">
   
     <link rel="alternate" href="/atom.xml" title="Spike&#39;s Blog" type="application/atom+xml">
   
@@ -329,14 +329,14 @@
   
 <main class="main" role="main">
   <div class="content">
-  <article id="post-tuple_manager_2" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
+  <article id="post-statx" class="article article-type-post" itemscope itemtype="http://schema.org/BlogPosting">
     
     <div class="article-header">
       
         
   
     <h1 class="article-title" itemprop="name">
-      PostgreSQL源码 · 元组管理（二）· 元组的组织结构
+      C语言 · statx
     </h1>
   
 
@@ -344,20 +344,20 @@
       <div class="article-meta">
         <span class="article-date">
     <i class="icon icon-calendar-check"></i>
-	<a href="/2023/07/11/tuple_manager_2/" class="article-date">
-	  <time datetime="2023-07-11T10:35:06.000Z" itemprop="datePublished">2023-07-11</time>
+	<a href="/2023/07/25/statx/" class="article-date">
+	  <time datetime="2023-07-25T06:41:21.000Z" itemprop="datePublished">2023-07-25</time>
 	</a>
 </span>
         
   <span class="article-category">
     <i class="icon icon-folder"></i>
-    <a class="article-category-link" href="/categories/PostgreSQL/">PostgreSQL</a>
+    <a class="article-category-link" href="/categories/Linux/">Linux</a>
   </span>
 
         
   <span class="article-tag">
     <i class="icon icon-tags"></i>
-	<a class="article-tag-link-link" href="/tags/PostgreSQL/" rel="tag">PostgreSQL</a>, <a class="article-tag-link-link" href="/tags/storage/" rel="tag">storage</a>
+	<a class="article-tag-link-link" href="/tags/Linux/" rel="tag">Linux</a>, <a class="article-tag-link-link" href="/tags/libc/" rel="tag">libc</a>
   </span>
 
 
@@ -370,73 +370,37 @@
 	</span>
 
 
-        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/2023/07/11/tuple_manager_2/#comments" class="article-comment-link">Comments</a></span>
+        <span class="post-comment"><i class="icon icon-comment"></i> <a href="/2023/07/25/statx/#comments" class="article-comment-link">Comments</a></span>
         
 	
-		<span class="post-wordcount hidden-xs" itemprop="wordCount">Word Count: 428(words)</span>
+		<span class="post-wordcount hidden-xs" itemprop="wordCount">Word Count: 608(words)</span>
 	
 	
-		<span class="post-readcount hidden-xs" itemprop="timeRequired">Read Count: 1(minutes)</span>
+		<span class="post-readcount hidden-xs" itemprop="timeRequired">Read Count: 3(minutes)</span>
 	
 
       </div>
     </div>
     <div class="article-entry marked-body" itemprop="articleBody">
       
-        <ul>
-<li><a href="#tuple%E7%9A%84%E7%BB%93%E6%9E%84">Tuple的结构</a>
-<ul>
-<li><a href="#heaptupleheader">HeapTupleHeader</a>
-<ul>
-<li><a href="#heaptuplefields">HeapTupleFields</a></li>
-<li><a href="#datumtuplefields">DatumTupleFields</a></li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<hr>
-<br>
-<p>上次我们简单看了下PostgreSQL中页面的组织结构，介绍了PageHeader和行指针的结构。这次我们来看看元组的结构，也就是tuple的<code>成员变量</code></p>
-<h2 id="Tuple的结构">Tuple的结构</h2>
-<p>元组的结构如下</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">HeapTupleData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    uint32          t_len;</span><br><span class="line">    ItemPointerData t_self;</span><br><span class="line">    Oid             t_tableOid;</span><br><span class="line">    HeapTupleHeader t_data;</span><br><span class="line">&#125; HeapTupleData;</span><br></pre></td></tr></table></figure>
-<ul>
-<li><code>t_len</code>，元组<code>t_data</code>字段的长度</li>
-<li><code>t_self</code>，记录元组自己的位置信息，包括所在的block信息，和元组在页面中的offset</li>
-<li><code>t_tableOid</code>，元组所在表的oid</li>
-<li><code>t_data</code>，元组的元数据信息和具体存储的数据</li>
-</ul>
-<h3 id="HeapTupleHeader">HeapTupleHeader</h3>
-<p>存储元组的元数据信息，结构如下</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">HeapTupleHeaderData</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">union</span></span></span><br><span class="line"><span class="class">    &#123;</span></span><br><span class="line">        HeapTupleFields     t_heap;</span><br><span class="line">        DatumTupleFields    t_datum;</span><br><span class="line">    &#125; t_choice;</span><br><span class="line"></span><br><span class="line">    ItemPointerData t_ctid;</span><br><span class="line">    uint16      t_infomask2;</span><br><span class="line">    uint16      t_infomask;</span><br><span class="line">    uint8       t_hoff;</span><br><span class="line">    bits8       t_bits[FLEXIBLE_ARRAY_MEMBER];</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-<ul>
-<li><code>t_heap</code>，元组事务相关的域</li>
-<li><code>t_datum</code>，元组数据相关的域</li>
-<li><code>t_cid</code>，HOT元组会指向最新的元组位置，否则指向自己的位置</li>
-<li><code>t_infomask2</code>，元组的属性数，和一些标记位</li>
-<li><code>t_infomask</code>，元组的标记位。这些标记我们就不在这里介绍了</li>
-<li><code>t_hoff</code>，header的整体大小</li>
-<li><code>t_bits</code>，NULL值列的数组</li>
-</ul>
-<p><code>t_bits</code>数组之后存放的就是元组的数据</p>
-<h4 id="HeapTupleFields">HeapTupleFields</h4>
-<p>元组事务相关的域</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">HeapTupleFields</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    TransactionId t_xmin;</span><br><span class="line">    TransactionId t_xmax;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">union</span></span></span><br><span class="line"><span class="class">    &#123;</span></span><br><span class="line">        CommandId       t_cid;</span><br><span class="line">        TransactionId   t_xvac;</span><br><span class="line">    &#125; t_field3;</span><br><span class="line">&#125; HeapTupleFields;</span><br></pre></td></tr></table></figure>
-<ul>
-<li><code>t_xmin</code>，元组插入的事务号</li>
-<li><code>t_xmax</code>，元组删除的事务号</li>
-<li><code>t_cid</code>，命令id，表示当前事务中执行的修改该元组的命令的id</li>
-<li><code>t_xvac</code>，vacuum full操作的事务号</li>
-</ul>
-<h4 id="DatumTupleFields">DatumTupleFields</h4>
-<p>元组数据相关的域</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">DatumTupleFields</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    int32		datum_len_;		<span class="comment">/* varlena header (do not touch directly!) */</span></span><br><span class="line">    int32		datum_typmod;	<span class="comment">/* -1, or identifier of a record type */</span></span><br><span class="line">    Oid			datum_typeid;	<span class="comment">/* composite type OID, or RECORDOID */</span></span><br><span class="line"></span><br><span class="line">&#125; DatumTupleFields;</span><br></pre></td></tr></table></figure>
-<ul>
-<li><code>datum_len_</code>，变长数据类型的长度</li>
-<li><code>datum_typmod</code>，数据类型</li>
-<li><code>datum_typeid</code>，复合类型的类型oid</li>
-</ul>
+        <p>最近开发遇到一个问题，想要获取某个文件毫秒级的修改时间。众所周知C标准库中提供的<code>stat</code>函数只能获取到秒级的修改时间<code>st_mtime</code>。相关的信息翻了个遍，最终还是神奇的ChatGPT给我了答案：</p>
+<p>Linux 4.11及更高版本，支持<code>statx</code>提供了毫秒级的文件修改时间</p>
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+<p><strong>Struct</strong></p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">statx</span> &#123;</span><br><span class="line">    __u32 stx_mask;        <span class="comment">/* Mask of bits indicating</span></span><br><span class="line"><span class="comment">                                filled fields */</span></span><br><span class="line">    __u32 stx_blksize;     <span class="comment">/* Block size for filesystem I/O */</span></span><br><span class="line">    __u64 stx_attributes;  <span class="comment">/* Extra file attribute indicators */</span></span><br><span class="line">    __u32 stx_nlink;       <span class="comment">/* Number of hard links */</span></span><br><span class="line">    __u32 stx_uid;         <span class="comment">/* User ID of owner */</span></span><br><span class="line">    __u32 stx_gid;         <span class="comment">/* Group ID of owner */</span></span><br><span class="line">    __u16 stx_mode;        <span class="comment">/* File type and mode */</span></span><br><span class="line">    __u64 stx_ino;         <span class="comment">/* Inode number */</span></span><br><span class="line">    __u64 stx_size;        <span class="comment">/* Total size in bytes */</span></span><br><span class="line">    __u64 stx_blocks;      <span class="comment">/* Number of 512B blocks allocated */</span></span><br><span class="line">    __u64 stx_attributes_mask;</span><br><span class="line">                            <span class="comment">/* Mask to show what&#x27;s supported</span></span><br><span class="line"><span class="comment">                                in stx_attributes */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The following fields are file timestamps */</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">statx_timestamp</span> stx_atime;  <span class="comment">/* Last access */</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">statx_timestamp</span> stx_btime;  <span class="comment">/* Creation */</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">statx_timestamp</span> stx_ctime;  <span class="comment">/* Last status change */</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">statx_timestamp</span> stx_mtime;  <span class="comment">/* Last modification */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* If this file represents a device, then the next two</span></span><br><span class="line"><span class="comment">        fields contain the ID of the device */</span></span><br><span class="line">    __u32 stx_rdev_major;  <span class="comment">/* Major ID */</span></span><br><span class="line">    __u32 stx_rdev_minor;  <span class="comment">/* Minor ID */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* The next two fields contain the ID of the device</span></span><br><span class="line"><span class="comment">        containing the filesystem where the file resides */</span></span><br><span class="line">    __u32 stx_dev_major;   <span class="comment">/* Major ID */</span></span><br><span class="line">    __u32 stx_dev_minor;   <span class="comment">/* Minor ID */</span></span><br><span class="line"></span><br><span class="line">    __u64 stx_mnt_id;      <span class="comment">/* Mount ID */</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Direct I/O alignment restrictions */</span></span><br><span class="line">    __u32 stx_dio_mem_align;</span><br><span class="line">    __u32 stx_dio_offset_align;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>其中四个<code>statx_timestamp</code>就是我们需要的毫秒级时间戳</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">struct</span> <span class="title class_">statx_timestamp</span> &#123;</span><br><span class="line">    __s64   tv_sec;      <span class="comment">// 秒数时间戳</span></span><br><span class="line">    __u32   tv_nsec;     <span class="comment">// tv_srchi周的纳秒数</span></span><br><span class="line">    __s32   __reserved;  <span class="comment">// 保留精度</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p><strong>FUNCTION</strong></p>
+<p>函数statx位于C标准库 Standard C library (libc, -lc)，函数的声明和使用如下</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> _GNU_SOURCE</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;fcntl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/stat.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">statx</span><span class="params">(<span class="type">int</span> dirfd, <span class="type">const</span> <span class="type">char</span> *restrict pathname, <span class="type">int</span> flags,</span></span></span><br><span class="line"><span class="params"><span class="function">          <span class="type">unsigned</span> <span class="type">int</span> mask, <span class="keyword">struct</span> statx *restrict statxbuf)</span></span>;</span><br></pre></td></tr></table></figure>
+<p><strong>RETURN</strong></p>
+<p>如果执行成功，返回0，否则返回-1并设置errno</p>
+<p>更详细的函数信息请阅读 <a target="_blank" rel="noopener" href="https://man7.org/linux/man-pages/man2/statx.2.html">LINUX MANUAL PAGE</a></p>
+<h2 id="Example">Example</h2>
+<p>我自己测试的一个简单例子</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;error.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;fcntl.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdint.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/stat.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;time.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *filename = <span class="string">&quot;tmp_file&quot;</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// statx 结构体</span></span><br><span class="line">    <span class="keyword">struct</span> <span class="title class_">statx</span> buffer;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// AT_FDCWD    在当前目录下运行</span></span><br><span class="line">    <span class="comment">// STATX_MTIME 获取修改时间</span></span><br><span class="line">    <span class="comment">// AT_SYMLINK_NOFOLLOW 如果是链接则返回链接本身信息</span></span><br><span class="line">    <span class="type">int</span> result =</span><br><span class="line">        <span class="built_in">statx</span>(AT_FDCWD, filename, AT_SYMLINK_NOFOLLOW, STATX_MTIME, &amp;buffer);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (result == <span class="number">-1</span>) &#123;</span><br><span class="line">        <span class="built_in">fprintf</span>(stderr, <span class="string">&quot;Error: %m\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// buffer.stx_mtime 记录文件的最后修改时间</span></span><br><span class="line">    <span class="comment">// tv_sec 是秒级, tv_nsec 是毫秒级</span></span><br><span class="line">    <span class="type">int64_t</span> sec = buffer.stx_mtime.tv_sec;</span><br><span class="line">    <span class="type">int</span>     micro_sec = buffer.stx_mtime.tv_nsec / <span class="number">1000</span>;</span><br><span class="line">    <span class="type">char</span>    time_str[<span class="number">128</span>];</span><br><span class="line"></span><br><span class="line">    <span class="built_in">strftime</span>(time_str, <span class="number">128</span>, <span class="string">&quot;%Y-%m-%d %H:%M:%S&quot;</span>, <span class="built_in">localtime</span>(&amp;sec));</span><br><span class="line">    <span class="built_in">fprintf</span>(stdout, <span class="string">&quot;Modification time of file %s is %s.%d\n&quot;</span>, filename,</span><br><span class="line">        time_str, micro_sec);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Linux测试用例</p>
+<p><a target="_blank" rel="noopener" href="https://kgithub.com/torvalds/linux/blob/master/samples/vfs/test-statx.c">https://kgithub.com/torvalds/linux/blob/master/samples/vfs/test-statx.c</a></p>
 
       
     </div>
@@ -446,7 +410,7 @@
     
     <li class="post-copyright-link hidden-xs">
       <strong>本文链接：</strong>
-      <a href="https://spike1337.github.io/2023/07/11/tuple_manager_2/" title="PostgreSQL源码 · 元组管理（二）· 元组的组织结构" target="_blank" rel="external">https://spike1337.github.io/2023/07/11/tuple_manager_2/</a>
+      <a href="https://spike1337.github.io/2023/07/25/statx/" title="C语言 · statx" target="_blank" rel="external">https://spike1337.github.io/2023/07/25/statx/</a>
     </li>
     
     <li class="post-copyright-license">
@@ -492,13 +456,9 @@
   
   <ul class="pager pull-left">
     
-    <li class="prev">
-      <a href="/2023/07/13/tuple_insert/" title="PostgreSQL源码 · 元组管理（三）· 元组的插入"><i class="icon icon-angle-left" aria-hidden="true"></i><span>&nbsp;&nbsp;Newer</span></a>
-    </li>
-    
     
     <li class="next">
-      <a href="/2023/07/10/tuple_manager_1/" title="PostgreSQL源码 · 元组管理（一）· 页的组织结构"><span>Older&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
+      <a href="/2023/07/13/tuple_insert/" title="PostgreSQL源码 · 元组管理（三）· 元组的插入"><span>Older&nbsp;&nbsp;</span><i class="icon icon-angle-right" aria-hidden="true"></i></a>
     </li>
     
     
