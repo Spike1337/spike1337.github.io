@@ -193,6 +193,13 @@
   </url>
   
   <url>
+    <loc>https://spike1337.github.io/tags/file-access/</loc>
+    <lastmod>2023-07-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
     <loc>https://spike1337.github.io/tags/storage/</loc>
     <lastmod>2023-07-25</lastmod>
     <changefreq>weekly</changefreq>
