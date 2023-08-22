@@ -1,31 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://spike1337.github.io/2023/07/25/statx/</loc>
-    <lastmod>2023-07-25</lastmod>
+    <loc>https://spike1337.github.io/2023/08/22/butterfly-test/</loc>
+    <lastmod>2023-08-22</lastmod>
   </url>
   <url>
     <loc>https://spike1337.github.io/2023/07/13/tuple_insert/</loc>
-    <lastmod>2023-07-18</lastmod>
-  </url>
-  <url>
-    <loc>https://spike1337.github.io/2023/07/11/tuple_manager_2/</loc>
-    <lastmod>2023-07-18</lastmod>
-  </url>
-  <url>
-    <loc>https://spike1337.github.io/2023/07/10/tuple_manager_1/</loc>
-    <lastmod>2023-07-18</lastmod>
-  </url>
-  <url>
-    <loc>https://spike1337.github.io/2023/02/06/mvcc-source-code/</loc>
-    <lastmod>2023-07-18</lastmod>
+    <lastmod>2023-08-22</lastmod>
   </url>
   <url>
     <loc>https://spike1337.github.io/2023/02/07/devtodo-manual/</loc>
-    <lastmod>2023-07-18</lastmod>
+    <lastmod>2023-08-22</lastmod>
+  </url>
+  <url>
+    <loc>https://spike1337.github.io/2023/07/11/tuple_manager_2/</loc>
+    <lastmod>2023-08-22</lastmod>
+  </url>
+  <url>
+    <loc>https://spike1337.github.io/2023/07/10/tuple_manager_1/</loc>
+    <lastmod>2023-08-22</lastmod>
+  </url>
+  <url>
+    <loc>https://spike1337.github.io/2023/07/25/statx/</loc>
+    <lastmod>2023-08-22</lastmod>
+  </url>
+  <url>
+    <loc>https://spike1337.github.io/2023/02/06/mvcc-source-code/</loc>
+    <lastmod>2023-08-22</lastmod>
   </url>
   <url>
     <loc>https://spike1337.github.io/2023/02/03/pg-wal-source-code/</loc>
-    <lastmod>2023-02-28</lastmod>
+    <lastmod>2023-08-22</lastmod>
   </url>
 </urlset> 
