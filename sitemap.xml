@@ -101,7 +101,7 @@
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/categories/index.html</loc>
+    <loc>https://spike1337.github.io/books/index.html</loc>
     
     <lastmod>2023-08-22</lastmod>
     
@@ -110,7 +110,7 @@
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/books/index.html</loc>
+    <loc>https://spike1337.github.io/categories/index.html</loc>
     
     <lastmod>2023-08-22</lastmod>
     
@@ -146,6 +146,13 @@
 
   
   <url>
+    <loc>https://spike1337.github.io/tags/demo/</loc>
+    <lastmod>2023-08-24</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
     <loc>https://spike1337.github.io/tags/Linux/</loc>
     <lastmod>2023-08-24</lastmod>
     <changefreq>weekly</changefreq>
@@ -154,27 +161,6 @@
   
   <url>
     <loc>https://spike1337.github.io/tags/tools/</loc>
-    <lastmod>2023-08-24</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://spike1337.github.io/tags/demo/</loc>
-    <lastmod>2023-08-24</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://spike1337.github.io/tags/libc/</loc>
-    <lastmod>2023-08-24</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://spike1337.github.io/tags/file-access/</loc>
     <lastmod>2023-08-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -222,17 +208,31 @@
     <priority>0.2</priority>
   </url>
   
-
-  
   <url>
-    <loc>https://spike1337.github.io/categories/Linux/</loc>
+    <loc>https://spike1337.github.io/tags/libc/</loc>
     <lastmod>2023-08-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
+    <loc>https://spike1337.github.io/tags/file-access/</loc>
+    <lastmod>2023-08-24</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+
+  
+  <url>
     <loc>https://spike1337.github.io/categories/demo/</loc>
+    <lastmod>2023-08-24</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://spike1337.github.io/categories/Linux/</loc>
     <lastmod>2023-08-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
