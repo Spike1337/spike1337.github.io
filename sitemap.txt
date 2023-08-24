@@ -9,8 +9,8 @@ https://spike1337.github.io/2023/02/07/devtodo-manual/
 https://spike1337.github.io/tags/index.html
 https://spike1337.github.io/repository/index.html
 https://spike1337.github.io/links/index.html
-https://spike1337.github.io/categories/index.html
 https://spike1337.github.io/books/index.html
+https://spike1337.github.io/categories/index.html
 https://spike1337.github.io/2023/07/25/statx/
 https://spike1337.github.io/404.html
 https://spike1337.github.io/
@@ -18,13 +18,13 @@ https://spike1337.github.io/tags/demo/
 https://spike1337.github.io/tags/Linux/
 https://spike1337.github.io/tags/tools/
 https://spike1337.github.io/tags/PostgreSQL/
-https://spike1337.github.io/tags/transaction/
-https://spike1337.github.io/tags/MVCC/
 https://spike1337.github.io/tags/replication/
 https://spike1337.github.io/tags/WAL/
-https://spike1337.github.io/tags/storage/
+https://spike1337.github.io/tags/transaction/
+https://spike1337.github.io/tags/MVCC/
 https://spike1337.github.io/tags/libc/
 https://spike1337.github.io/tags/file-access/
+https://spike1337.github.io/tags/storage/
 https://spike1337.github.io/categories/demo/
 https://spike1337.github.io/categories/Linux/
 https://spike1337.github.io/categories/PostgreSQL/
