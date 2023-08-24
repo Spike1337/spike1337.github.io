@@ -28,6 +28,17 @@
  * --syntax-cursor-line: hsla(230, 8%, 24%, 0.05);
  */
 
+:root {
+  --hl-color: hsl(230, 8%, 24%);
+  --hl-bg: hsl(230, 1%, 98%);
+  --hltools-bg: xxxxxxx;
+  --hltools-color: xxxxxxx;
+  --hlnumber-bg: xxxxxxx;
+  --hlnumber-color: xxxxxxxx;
+  --hlscrollbar-bg: xxxxx;
+  --hlexpand-bg: xxxxxxx
+}
+
 code[class*="language-"],
 pre[class*="language-"] {
 	background: hsl(230, 1%, 98%);
