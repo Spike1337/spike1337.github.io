@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://spike1337.github.io/2023/08/31/leetcode_sql/</loc>
+    <lastmod>2023-08-31</lastmod>
+  </url>
+  <url>
+    <loc>https://spike1337.github.io/2023/08/31/leetcode_algorithms/</loc>
+    <lastmod>2023-08-31</lastmod>
+  </url>
+  <url>
+    <loc>https://spike1337.github.io/2023/08/31/leetcode_struct/</loc>
+    <lastmod>2023-08-31</lastmod>
+  </url>
+  <url>
     <loc>https://spike1337.github.io/2023/08/25/my_cxx_best_practice_nodes/</loc>
     <lastmod>2023-08-25</lastmod>
   </url>
