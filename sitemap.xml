@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>https://spike1337.github.io/2023/08/31/leetcode_algorithms/</loc>
+    <loc>https://spike1337.github.io/2023/08/31/leetcode_sql/</loc>
     
     <lastmod>2023-08-31</lastmod>
     
@@ -11,7 +11,7 @@
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/2023/08/31/leetcode_sql/</loc>
+    <loc>https://spike1337.github.io/2023/08/31/leetcode_algorithms/</loc>
     
     <lastmod>2023-08-31</lastmod>
     
@@ -137,7 +137,7 @@
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/categories/index.html</loc>
+    <loc>https://spike1337.github.io/books/index.html</loc>
     
     <lastmod>2023-08-22</lastmod>
     
@@ -146,7 +146,7 @@
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/books/index.html</loc>
+    <loc>https://spike1337.github.io/categories/index.html</loc>
     
     <lastmod>2023-08-22</lastmod>
     
@@ -182,13 +182,6 @@
 
   
   <url>
-    <loc>https://spike1337.github.io/tags/demo/</loc>
-    <lastmod>2023-08-31</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
     <loc>https://spike1337.github.io/tags/Linux/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
@@ -203,14 +196,14 @@
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/tags/C-Algorithm/</loc>
+    <loc>https://spike1337.github.io/tags/SQL/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/tags/SQL/</loc>
+    <loc>https://spike1337.github.io/tags/C-Algorithm/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -224,7 +217,28 @@
   </url>
   
   <url>
+    <loc>https://spike1337.github.io/tags/demo/</loc>
+    <lastmod>2023-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://spike1337.github.io/tags/C-develop/</loc>
+    <lastmod>2023-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
     <loc>https://spike1337.github.io/tags/PostgreSQL/</loc>
+    <lastmod>2023-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://spike1337.github.io/tags/storage/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -245,13 +259,6 @@
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/tags/C-develop/</loc>
-    <lastmod>2023-08-31</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
     <loc>https://spike1337.github.io/tags/libc/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
@@ -260,13 +267,6 @@
   
   <url>
     <loc>https://spike1337.github.io/tags/file-access/</loc>
-    <lastmod>2023-08-31</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://spike1337.github.io/tags/storage/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -289,13 +289,6 @@
 
   
   <url>
-    <loc>https://spike1337.github.io/categories/demo/</loc>
-    <lastmod>2023-08-31</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
     <loc>https://spike1337.github.io/categories/Linux/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
@@ -310,7 +303,7 @@
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/categories/PostgreSQL/</loc>
+    <loc>https://spike1337.github.io/categories/demo/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -318,6 +311,13 @@
   
   <url>
     <loc>https://spike1337.github.io/categories/C/</loc>
+    <lastmod>2023-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://spike1337.github.io/categories/PostgreSQL/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
