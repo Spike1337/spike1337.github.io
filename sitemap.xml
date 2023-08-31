@@ -182,13 +182,6 @@
 
   
   <url>
-    <loc>https://spike1337.github.io/tags/SQL/</loc>
-    <lastmod>2023-08-31</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
     <loc>https://spike1337.github.io/tags/demo/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
@@ -196,14 +189,14 @@
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/tags/C-Algorithm/</loc>
+    <loc>https://spike1337.github.io/tags/SQL/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/tags/C-Data-Structure/</loc>
+    <loc>https://spike1337.github.io/tags/C-Algorithm/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -218,6 +211,13 @@
   
   <url>
     <loc>https://spike1337.github.io/tags/tools/</loc>
+    <lastmod>2023-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://spike1337.github.io/tags/C-Data-Structure/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -289,14 +289,14 @@
 
   
   <url>
-    <loc>https://spike1337.github.io/categories/practice/</loc>
+    <loc>https://spike1337.github.io/categories/demo/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
   </url>
   
   <url>
-    <loc>https://spike1337.github.io/categories/demo/</loc>
+    <loc>https://spike1337.github.io/categories/practice/</loc>
     <lastmod>2023-08-31</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>

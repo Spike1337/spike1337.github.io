@@ -18,12 +18,12 @@ https://spike1337.github.io/categories/index.html
 https://spike1337.github.io/2023/07/25/statx/
 https://spike1337.github.io/404.html
 https://spike1337.github.io/
-https://spike1337.github.io/tags/SQL/
 https://spike1337.github.io/tags/demo/
+https://spike1337.github.io/tags/SQL/
 https://spike1337.github.io/tags/C-Algorithm/
-https://spike1337.github.io/tags/C-Data-Structure/
 https://spike1337.github.io/tags/Linux/
 https://spike1337.github.io/tags/tools/
+https://spike1337.github.io/tags/C-Data-Structure/
 https://spike1337.github.io/tags/C-develop/
 https://spike1337.github.io/tags/PostgreSQL/
 https://spike1337.github.io/tags/transaction/
@@ -33,8 +33,8 @@ https://spike1337.github.io/tags/WAL/
 https://spike1337.github.io/tags/libc/
 https://spike1337.github.io/tags/file-access/
 https://spike1337.github.io/tags/storage/
-https://spike1337.github.io/categories/practice/
 https://spike1337.github.io/categories/demo/
+https://spike1337.github.io/categories/practice/
 https://spike1337.github.io/categories/Linux/
 https://spike1337.github.io/categories/C/
 https://spike1337.github.io/categories/PostgreSQL/
